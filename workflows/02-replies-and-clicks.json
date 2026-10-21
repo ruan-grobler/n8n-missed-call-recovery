@@ -1,0 +1,1183 @@
+{
+  "id": "hsRepliesClicks1",
+  "name": "Missed call recovery 2: replies and link clicks",
+  "nodes": [
+    {
+      "id": "99c571de-73aa-40fa-a8c9-323c9e6dbfdb",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -200
+      ],
+      "parameters": {
+        "content": "## 2. Replies and booking link clicks\n**SMS reply** (Twilio Messaging, \"A message comes in\"):\n- **STOP**, **UNSUBSCRIBE** or **OPT OUT** anywhere in the text, or CANCEL, END or QUIT as the whole text: the number goes on the opt out list. No more texts, not even a confirmation.\n- **YES** or **BOOK**: the booking link goes back, with the same tracked link. An opted out number is never texted; the manager is told instead.\n- Anything else: the manager gets the message in Slack or email.\n\nMessageSid is the idempotency key, so a retried webhook does nothing twice.\n\n**Link click** (GET /webhook/hs/book?t=...): records the first tap for the daily report, then redirects to booking_url. Link preview bots get a 403 and are not counted.",
+        "width": 500,
+        "height": 560,
+        "color": 4
+      }
+    },
+    {
+      "id": "a709143a-3fd3-44ba-a31e-030635f39cab",
+      "name": "Twilio inbound SMS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "73c9b5f3-7ff2-4eb5-a499-a4d187c218d9",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hs/sms-reply",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsWebhookAuth001",
+          "name": "Missed call kit webhook login"
+        }
+      }
+    },
+    {
+      "id": "f405930d-6770-4ed2-a1cc-9772fc97c313",
+      "name": "Booking link click",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        700
+      ],
+      "webhookId": "4707f1da-6849-422a-a171-7263242cbc14",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "hs/book",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {
+          "ignoreBots": true
+        }
+      }
+    },
+    {
+      "id": "62003733-9fdf-4a2e-adba-8ef31febf4c1",
+      "name": "Path: SMS reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6cad5b4c-0996-422e-ace6-78d5d45e888a",
+              "name": "route",
+              "value": "reply",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "c8f72f10-ce7a-432b-a58d-a0fe412358ee",
+      "name": "Path: link click",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        700
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "02234005-b96d-4b6b-a358-b2c354a455d4",
+              "name": "route",
+              "value": "click",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "13c91720-f1ac-4691-a34d-09af9940a83e",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        440
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dc543486-f994-486f-a79c-d248cd6cafa4",
+              "name": "business_name",
+              "value": "Harbour Slice",
+              "type": "string"
+            },
+            {
+              "id": "f952dbe9-8c98-4932-a9c7-82b50bda8d57",
+              "name": "timezone",
+              "value": "Africa/Johannesburg",
+              "type": "string"
+            },
+            {
+              "id": "ff9a3665-9fd6-4b4d-aa5a-7bd759e34e2b",
+              "name": "booking_url",
+              "value": "https://book.example.com/harbour-slice",
+              "type": "string"
+            },
+            {
+              "id": "82d34bb7-d19b-48a9-a47e-c27eb4d6087e",
+              "name": "tracked_link_base",
+              "value": "https://n8n.example.com/webhook/hs/book",
+              "type": "string"
+            },
+            {
+              "id": "84f5511b-c4a2-432b-a2eb-3d7837cec683",
+              "name": "rebook_template",
+              "value": "{business}: here is the booking link again: {link} Reply STOP to opt out.",
+              "type": "string"
+            },
+            {
+              "id": "c9b7a6fa-12e8-4b36-a69f-d33de5562f0b",
+              "name": "twilio_api_base",
+              "value": "https://api.twilio.com",
+              "type": "string"
+            },
+            {
+              "id": "c44f8adb-f34c-4835-ae9f-d54289ce23f7",
+              "name": "twilio_account_sid",
+              "value": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "type": "string"
+            },
+            {
+              "id": "6b2cf046-7a57-4dc5-a2a4-4265a996421c",
+              "name": "twilio_from",
+              "value": "+27000000000",
+              "type": "string"
+            },
+            {
+              "id": "33da98c5-3a4f-4f25-ae17-5d5a84cf864c",
+              "name": "notify_slack",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "4d567d72-3e56-443a-a477-20534a8af76a",
+              "name": "notify_email",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "feec15a0-d81a-4476-ac22-fc8e413973d4",
+              "name": "slack_api_base",
+              "value": "https://slack.com",
+              "type": "string"
+            },
+            {
+              "id": "edd93263-c3b6-4449-a0d8-67c59b069157",
+              "name": "slack_channel",
+              "value": "#harbour-slice-alerts",
+              "type": "string"
+            },
+            {
+              "id": "8ae1acac-7b7c-4a37-a04e-76907adebb0b",
+              "name": "email_from",
+              "value": "alerts@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "a5bb05fa-d917-4199-abcc-38e663cb00e1",
+              "name": "email_to",
+              "value": "manager@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "ef1cd933-6acd-4aad-adc9-081f891187e9",
+              "name": "test_clock_enabled",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "63255a1b-aa7e-4750-ae05-3deafe521d42",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        660,
+        440
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "596417be-97f3-4b35-a8ae-6b00b1bb4958",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "reply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "SMS reply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9e07881-b138-4ffa-add0-b20b09d7301f",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "click",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "link click"
+            }
+          ]
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "ab1553f7-250b-4c95-a42d-1e09169a7c01",
+      "name": "Read reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/readReply.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/reply.ts ----\n// Classifies an inbound SMS reply and decides what the kit does with it.\n// Opt out wins over everything else. STOP, UNSUBSCRIBE and OPT OUT count anywhere in the message.\n// CANCEL, END, QUIT and friends only count as the whole message, so \"cancel my order\" or\n// \"remove olives\" reaches the manager instead of silently opting someone out.\nconst OPT_OUT_ANYWHERE = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'OPTOUT'];\n\nconst OPT_OUT_PHRASES = ['OPT OUT', 'STOP ALL'];\n\nconst OPT_OUT_WHOLE_MESSAGE = ['CANCEL', 'END', 'QUIT', 'REVOKE', 'REMOVE ME'];\n\nconst BOOK_FIRST_WORDS = ['YES', 'Y', 'YEP', 'YEAH', 'JA'];\n\nconst BOOK_ANYWHERE = ['BOOK', 'BOOKING'];\n\nconst normaliseText = (body) => String(body ?? '')\n  .toUpperCase()\n  .replace(/[^A-Z0-9 ]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// Twilio adds OptOutType=STOP when its own opt out handling caught the message. Trust it too.\nconst classifyReply = (body, twilioOptOutType) => {\n  if (String(twilioOptOutType ?? '').toUpperCase() === 'STOP') {\n    return 'opt_out';\n  }\n  const text = normaliseText(body);\n  if (text === '') {\n    return 'other';\n  }\n  const words = text.split(' ');\n  const padded = ` ${text} `;\n  const optOut = words.some((word) => OPT_OUT_ANYWHERE.includes(word))\n    || OPT_OUT_PHRASES.some((phrase) => padded.includes(` ${phrase} `))\n    || OPT_OUT_WHOLE_MESSAGE.includes(text);\n  if (optOut) {\n    return 'opt_out';\n  }\n  if (BOOK_FIRST_WORDS.includes(words[0] ?? '') || words.some((word) => BOOK_ANYWHERE.includes(word))) {\n    return 'book';\n  }\n  return 'other';\n};\n\n// A number that opted out never gets another SMS, even if it later asks for the link.\n// The manager hears about it instead and can decide to phone them.\nconst decideReplyAction = (row, intent) => {\n  if (row.is_new !== true) {\n    return 'duplicate';\n  }\n  if (intent === 'opt_out') {\n    return 'opted_out';\n  }\n  if (intent === 'book') {\n    return row.opted_out_before === true ? 'blocked_opted_out' : 'link_sent';\n  }\n  return 'manager_alerted';\n};\n\n// Alerts carry at most this much of the customer's message.\nconst previewText = (body, maxLength = 300) => {\n  const text = String(body ?? '').replace(/\\s+/g, ' ').trim();\n  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;\n};\n\n// ---- src/nodes/readReply.ts ----\n// Code node \"Read reply\" in workflow 2. Input: the Config item, which carries Twilio's inbound SMS webhook.\nconst readReply = (item, realNowIso) => {\n  const headers = readRecord(item.headers);\n  const body = readRecord(item.body);\n  const nowIso = resolveNow(realNowIso, configFlag(item, 'test_clock_enabled'), headers['x-hs-test-clock']);\n  const messageSid = String(body.MessageSid ?? body.SmsSid ?? '').trim();\n  const phone = normalisePhone(body.From);\n  const valid = /^[A-Za-z0-9_-]{1,64}$/.test(messageSid) && phone.ok;\n  return {\n    valid,\n    ignore_reason: valid ? null : 'missing MessageSid or a readable From number',\n    message_sid: messageSid,\n    from_e164: phone.ok ? phone.e164 : null,\n    intent: classifyReply(body.Body, body.OptOutType),\n    preview: previewText(body.Body),\n    now_iso: nowIso,\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: readReply($input.first().json, $now.toISO()) }];\n"
+      },
+      "notes": "Generated from src/nodes/readReply.ts"
+    },
+    {
+      "id": "7698f052-b5b7-4c1c-a1a2-35661d5bca0d",
+      "name": "Valid reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4beba16e-9edd-4693-a22a-5339bf83ea57",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "dcb66304-bd12-473f-a6b4-9c30764c16f0",
+      "name": "Record reply",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stores an inbound SMS reply once (MessageSid is the idempotency key) and, for STOP style replies,\n-- adds the number to the opt out list in the same statement. The message text itself is never stored.\n-- $1 message_sid, $2 from_e164, $3 intent, $4 received_at\nWITH reply AS (\n  INSERT INTO hs_sms_replies (message_sid, from_e164, intent, received_at)\n  VALUES ($1::text, $2::text, $3::text, $4::timestamptz)\n  ON CONFLICT (message_sid) DO NOTHING\n  RETURNING message_sid\n), opt_out AS (\n  INSERT INTO hs_opt_outs (phone_e164, opted_out_at, source)\n  SELECT $2::text, $4::timestamptz, 'sms_reply'\n  WHERE $3::text = 'opt_out' AND EXISTS (SELECT 1 FROM reply)\n  ON CONFLICT (phone_e164) DO NOTHING\n  RETURNING phone_e164\n)\nSELECT\n  EXISTS (SELECT 1 FROM reply) AS is_new,\n  EXISTS (SELECT 1 FROM hs_opt_outs o WHERE o.phone_e164 = $2::text) AS opted_out_before,\n  EXISTS (SELECT 1 FROM opt_out) AS opted_out_now,\n  (SELECT m.link_token FROM hs_missed_calls m\n    WHERE m.caller_e164 = $2::text AND m.outcome = 'sent'\n    ORDER BY m.called_at DESC LIMIT 1) AS link_token",
+        "options": {
+          "queryReplacement": "={{ [ $json.message_sid, $json.from_e164, $json.intent, $json.now_iso ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "fcc32a38-eb9c-47d2-a8cd-fa330d31f185",
+      "name": "Decide reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/decideReply.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/logic/reply.ts ----\n// Classifies an inbound SMS reply and decides what the kit does with it.\n// Opt out wins over everything else. STOP, UNSUBSCRIBE and OPT OUT count anywhere in the message.\n// CANCEL, END, QUIT and friends only count as the whole message, so \"cancel my order\" or\n// \"remove olives\" reaches the manager instead of silently opting someone out.\nconst OPT_OUT_ANYWHERE = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'OPTOUT'];\n\nconst OPT_OUT_PHRASES = ['OPT OUT', 'STOP ALL'];\n\nconst OPT_OUT_WHOLE_MESSAGE = ['CANCEL', 'END', 'QUIT', 'REVOKE', 'REMOVE ME'];\n\nconst BOOK_FIRST_WORDS = ['YES', 'Y', 'YEP', 'YEAH', 'JA'];\n\nconst BOOK_ANYWHERE = ['BOOK', 'BOOKING'];\n\nconst normaliseText = (body) => String(body ?? '')\n  .toUpperCase()\n  .replace(/[^A-Z0-9 ]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// Twilio adds OptOutType=STOP when its own opt out handling caught the message. Trust it too.\nconst classifyReply = (body, twilioOptOutType) => {\n  if (String(twilioOptOutType ?? '').toUpperCase() === 'STOP') {\n    return 'opt_out';\n  }\n  const text = normaliseText(body);\n  if (text === '') {\n    return 'other';\n  }\n  const words = text.split(' ');\n  const padded = ` ${text} `;\n  const optOut = words.some((word) => OPT_OUT_ANYWHERE.includes(word))\n    || OPT_OUT_PHRASES.some((phrase) => padded.includes(` ${phrase} `))\n    || OPT_OUT_WHOLE_MESSAGE.includes(text);\n  if (optOut) {\n    return 'opt_out';\n  }\n  if (BOOK_FIRST_WORDS.includes(words[0] ?? '') || words.some((word) => BOOK_ANYWHERE.includes(word))) {\n    return 'book';\n  }\n  return 'other';\n};\n\n// A number that opted out never gets another SMS, even if it later asks for the link.\n// The manager hears about it instead and can decide to phone them.\nconst decideReplyAction = (row, intent) => {\n  if (row.is_new !== true) {\n    return 'duplicate';\n  }\n  if (intent === 'opt_out') {\n    return 'opted_out';\n  }\n  if (intent === 'book') {\n    return row.opted_out_before === true ? 'blocked_opted_out' : 'link_sent';\n  }\n  return 'manager_alerted';\n};\n\n// Alerts carry at most this much of the customer's message.\nconst previewText = (body, maxLength = 300) => {\n  const text = String(body ?? '').replace(/\\s+/g, ' ').trim();\n  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;\n};\n\n// ---- src/logic/sms.ts ----\n// SMS text helpers. One GSM-7 segment is 160 characters, so the default copy is kept under that.\n// Fills {business} and {link} style placeholders. Unknown placeholders are left as they are.\nconst renderTemplate = (template, values) => template.replace(/\\{(\\w+)\\}/g, (whole, key) => values[key] ?? whole);\n\n// The tracked link counts the tap, then redirects to the real booking page.\nconst trackedLink = (linkBase, token) => `${linkBase}${linkBase.includes('?') ? '&' : '?'}t=${encodeURIComponent(token)}`;\n\nconst GSM7_BASIC = '@£$¥èéùìòÇ\\nØø\\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&\\'()*+,-./0123456789:;<=>?'\n  + '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';\n\nconst GSM7_EXTENDED = '^{}\\\\[~]|€\\f';\n\nconst smsSegments = (text) => {\n  const chars = Array.from(text);\n  const gsm = chars.every((char) => GSM7_BASIC.includes(char) || GSM7_EXTENDED.includes(char));\n  if (gsm) {\n    const units = chars.reduce((sum, char) => sum + (GSM7_EXTENDED.includes(char) ? 2 : 1), 0);\n    return { encoding: 'GSM-7', units, segments: units <= 160 ? 1 : Math.ceil(units / 153) };\n  }\n  const units = chars.reduce((sum, char) => sum + (char.length > 1 ? 2 : 1), 0);\n  return { encoding: 'UCS-2', units, segments: units <= 70 ? 1 : Math.ceil(units / 67) };\n};\n\n// Twilio's Messages API lives under the account. The base URL is configurable for regions and for mocks.\nconst twilioMessagesUrl = (apiBase, accountSid) => `${apiBase.replace(/\\/+$/, '')}/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;\n\n// ---- src/nodes/decideReply.ts ----\n// Code node \"Decide reply\" in workflow 2. Input: the row from sql/record-reply.sql, the read reply and Config.\nconst asIntent = (value) => (value === 'opt_out' || value === 'book' ? value : 'other');\n\n// The link goes back with the caller's own tracking token when the kit texted them before,\n// so a tap after \"YES\" still counts against that missed call.\nconst decideReply = (row, reply, cfg) => {\n  const action = decideReplyAction({ is_new: row.is_new, opted_out_before: row.opted_out_before }, asIntent(reply.intent));\n  const token = typeof row.link_token === 'string' ? row.link_token : '';\n  const link = token !== '' ? trackedLink(configString(cfg, 'tracked_link_base'), token) : configString(cfg, 'booking_url');\n  const sending = action === 'link_sent';\n  return {\n    action,\n    is_new: row.is_new === true,\n    message_sid: String(reply.message_sid),\n    sms_to: sending ? String(reply.from_e164) : '',\n    sms_from: sending ? configString(cfg, 'twilio_from') : '',\n    sms_body: sending ? renderTemplate(configString(cfg, 'rebook_template'), { business: configString(cfg, 'business_name'), link }) : '',\n    twilio_messages_url: sending ? twilioMessagesUrl(configString(cfg, 'twilio_api_base'), configString(cfg, 'twilio_account_sid')) : '',\n    now_iso: String(reply.now_iso),\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: decideReply($input.first().json, $('Read reply').first().json, $('Config').first().json) }];\n"
+      },
+      "notes": "Generated from src/nodes/decideReply.ts"
+    },
+    {
+      "id": "8d698c5c-d637-4073-a23a-4db43490a434",
+      "name": "New reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a95a0c05-1794-40ea-aa1b-15e4bd13ce42",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "69646d91-56ef-4760-a451-a2e6240ef15f",
+      "name": "Save reply action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1980,
+        160
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what the kit did with a reply. $1 message_sid, $2 action, $3 detail (or null)\nUPDATE hs_sms_replies SET action = $2::text, detail = COALESCE($3::text, detail)\nWHERE message_sid = $1::text\nRETURNING message_sid, from_e164, action, detail",
+        "options": {
+          "queryReplacement": "={{ [ $json.message_sid, $json.action, null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "d2ee4b60-2958-44b1-a66f-52833120f4bb",
+      "name": "Reply action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2200,
+        160
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c7c443e1-a556-4412-a287-4989cdc996ef",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "link_sent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "send link"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "406be263-26ad-45ef-a491-efa422b3427a",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "manager_alerted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "d306a5f7-04c5-48c1-aa1a-8cccea76e9b1",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "blocked_opted_out",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "alert manager"
+            }
+          ]
+        },
+        "looseTypeValidation": false,
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "opted out"
+        }
+      }
+    },
+    {
+      "id": "cedea540-8f5a-40db-a839-2024116f2bca",
+      "name": "Send booking link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Decide reply').first().json.twilio_messages_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $('Decide reply').first().json.sms_to }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $('Decide reply').first().json.sms_from }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $('Decide reply').first().json.sms_body }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsTwilioApiCred1",
+          "name": "Twilio API (Account SID and Auth Token)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b208e171-2df9-4b51-ac3a-1efd4ab2f42b",
+      "name": "Describe link failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        60
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/describeLinkFailure.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/alerts.ts ----\n// Messages for the manager. These do contain the caller's number, because the manager needs to act on them.\n// Pulls the useful part out of whatever n8n stored for a failed Twilio request.\n// Twilio errors look like {\"code\":21614,\"message\":\"'To' number is not a valid mobile number\",...}.\n// n8n may nest that body inside its own error object, sometimes as an escaped string.\nconst describeTwilioError = (raw) => {\n  const text = (typeof raw === 'string' ? raw : JSON.stringify(raw ?? '')).replace(/\\\\+\"/g, '\"');\n  const code = /\"code\"\\s*:\\s*\"?(\\d{5})\\b/.exec(text);\n  const messagePattern = /\"message\"\\s*:\\s*\"([^\"]{1,300})\"/;\n  if (code) {\n    const after = messagePattern.exec(text.slice(code.index, code.index + 400));\n    const before = messagePattern.exec(text.slice(Math.max(0, code.index - 400), code.index));\n    const message = after?.[1] ?? before?.[1];\n    return message ? `${message} (Twilio error ${code[1]})` : `Twilio error ${code[1]}`;\n  }\n  const message = messagePattern.exec(text);\n  return message?.[1] ?? (text.slice(0, 200) || 'unknown error');\n};\n\nconst failedSmsAlert = (business, callerE164, calledAtIso, timezone, error) => ({\n  alert_subject: `${business}: a missed caller could not be texted`,\n  alert_text: `${business}: we could not text a missed caller (${formatPhoneForPeople(callerE164)}, called at `\n    + `${localTimeLabel(calledAtIso, timezone)}). ${error}. Please call them back.`,\n});\n\nconst replyAlert = (business, fromE164, receivedAtIso, timezone, preview, blockedOptOut) => {\n  const who = formatPhoneForPeople(fromE164);\n  const at = localTimeLabel(receivedAtIso, timezone);\n  if (blockedOptOut) {\n    return {\n      alert_subject: `${business}: opted out customer asked for the booking link`,\n      alert_text: `${business}: ${who} asked for the booking link at ${at} (\"${preview}\"), but this number opted out `\n        + 'earlier, so the kit did not text them. Phone them if you want to help.',\n    };\n  }\n  return {\n    alert_subject: `${business}: new SMS reply from a missed caller`,\n    alert_text: `${business}: ${who} replied at ${at}: \"${preview}\". Reply to them from the shop phone.`,\n  };\n};\n\nconst linkFailedAlert = (business, fromE164, error) => ({\n  alert_subject: `${business}: booking link could not be sent`,\n  alert_text: `${business}: ${formatPhoneForPeople(fromE164)} asked for the booking link, but the SMS failed. `\n    + `${error}. Please send it by hand.`,\n});\n\n// ---- src/nodes/describeLinkFailure.ts ----\n// Code node \"Describe link failure\" in workflow 2. Readable error text for the reply log row.\nconst describeLinkFailure = (errorItem, decision) => ({\n  message_sid: String(decision.message_sid ?? ''),\n  error_text: describeTwilioError({ error: errorItem.error, details: errorItem.details }),\n});\n\n// ---- n8n entry point ----\nreturn [{ json: describeLinkFailure($input.first().json, $('Decide reply').first().json) }];\n"
+      },
+      "notes": "Generated from src/nodes/describeLinkFailure.ts"
+    },
+    {
+      "id": "ce9c017d-8030-4cf3-a804-a9d4538fdf4a",
+      "name": "Mark link failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2860,
+        60
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what the kit did with a reply. $1 message_sid, $2 action, $3 detail (or null)\nUPDATE hs_sms_replies SET action = $2::text, detail = COALESCE($3::text, detail)\nWHERE message_sid = $1::text\nRETURNING message_sid, from_e164, action, detail",
+        "options": {
+          "queryReplacement": "={{ [ $json.message_sid, 'link_failed', $json.error_text ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "f248d374-7247-4677-a993-ab2cd921b57c",
+      "name": "Alert text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/alertText.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/alerts.ts ----\n// Messages for the manager. These do contain the caller's number, because the manager needs to act on them.\n// Pulls the useful part out of whatever n8n stored for a failed Twilio request.\n// Twilio errors look like {\"code\":21614,\"message\":\"'To' number is not a valid mobile number\",...}.\n// n8n may nest that body inside its own error object, sometimes as an escaped string.\nconst describeTwilioError = (raw) => {\n  const text = (typeof raw === 'string' ? raw : JSON.stringify(raw ?? '')).replace(/\\\\+\"/g, '\"');\n  const code = /\"code\"\\s*:\\s*\"?(\\d{5})\\b/.exec(text);\n  const messagePattern = /\"message\"\\s*:\\s*\"([^\"]{1,300})\"/;\n  if (code) {\n    const after = messagePattern.exec(text.slice(code.index, code.index + 400));\n    const before = messagePattern.exec(text.slice(Math.max(0, code.index - 400), code.index));\n    const message = after?.[1] ?? before?.[1];\n    return message ? `${message} (Twilio error ${code[1]})` : `Twilio error ${code[1]}`;\n  }\n  const message = messagePattern.exec(text);\n  return message?.[1] ?? (text.slice(0, 200) || 'unknown error');\n};\n\nconst failedSmsAlert = (business, callerE164, calledAtIso, timezone, error) => ({\n  alert_subject: `${business}: a missed caller could not be texted`,\n  alert_text: `${business}: we could not text a missed caller (${formatPhoneForPeople(callerE164)}, called at `\n    + `${localTimeLabel(calledAtIso, timezone)}). ${error}. Please call them back.`,\n});\n\nconst replyAlert = (business, fromE164, receivedAtIso, timezone, preview, blockedOptOut) => {\n  const who = formatPhoneForPeople(fromE164);\n  const at = localTimeLabel(receivedAtIso, timezone);\n  if (blockedOptOut) {\n    return {\n      alert_subject: `${business}: opted out customer asked for the booking link`,\n      alert_text: `${business}: ${who} asked for the booking link at ${at} (\"${preview}\"), but this number opted out `\n        + 'earlier, so the kit did not text them. Phone them if you want to help.',\n    };\n  }\n  return {\n    alert_subject: `${business}: new SMS reply from a missed caller`,\n    alert_text: `${business}: ${who} replied at ${at}: \"${preview}\". Reply to them from the shop phone.`,\n  };\n};\n\nconst linkFailedAlert = (business, fromE164, error) => ({\n  alert_subject: `${business}: booking link could not be sent`,\n  alert_text: `${business}: ${formatPhoneForPeople(fromE164)} asked for the booking link, but the SMS failed. `\n    + `${error}. Please send it by hand.`,\n});\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/alertText.ts ----\n// Code node \"Alert text\" in workflow 2. Input: a reply log row (action, from_e164, detail) and the read reply.\nconst alertText = (row, reply, cfg) => {\n  const business = configString(cfg, 'business_name');\n  const from = String(row.from_e164 ?? reply.from_e164 ?? '');\n  if (row.action === 'link_failed') {\n    return linkFailedAlert(business, from, String(row.detail ?? 'unknown error'));\n  }\n  return replyAlert(business, from, String(reply.now_iso), configString(cfg, 'timezone'), String(reply.preview ?? ''), row.action === 'blocked_opted_out');\n};\n\n// ---- n8n entry point ----\nreturn [{ json: alertText($input.first().json, $('Read reply').first().json, $('Config').first().json) }];\n"
+      },
+      "notes": "Generated from src/nodes/alertText.ts"
+    },
+    {
+      "id": "515e451d-1e9d-4988-a504-e3642d6e969b",
+      "name": "Reply to Twilio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4200,
+        400
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "1d9fe37b-a07d-4846-a218-f32b45ac41b3",
+      "name": "Read click",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/readClick.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/readClick.ts ----\n// Code node \"Read click\" in workflow 2. The tracked link carries ?t=<token>. A bad token still redirects.\nconst readClick = (item, realNowIso) => {\n  const headers = readRecord(item.headers);\n  const token = String(readRecord(item.query).t ?? '').trim().toLowerCase();\n  return {\n    token,\n    valid: /^[a-f0-9]{12}$/.test(token),\n    now_iso: resolveNow(realNowIso, configFlag(item, 'test_clock_enabled'), headers['x-hs-test-clock']),\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: readClick($input.first().json, $now.toISO()) }];\n"
+      },
+      "notes": "Generated from src/nodes/readClick.ts"
+    },
+    {
+      "id": "215e9dee-d2fb-4250-ab40-ea95ad37fb30",
+      "name": "Record click",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        700
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Counts a tap on the tracked booking link. clicked_at keeps the first tap. $1 token, $2 now\nWITH hit AS (\n  UPDATE hs_missed_calls SET\n    clicked_at = COALESCE(clicked_at, $2::timestamptz),\n    click_count = click_count + 1\n  WHERE link_token = $1::text\n  RETURNING call_key\n)\nSELECT count(*)::int AS matched FROM hit",
+        "options": {
+          "queryReplacement": "={{ [ $json.token, $json.now_iso ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "40226cb7-8e7f-44a2-ac9c-46369c79aef7",
+      "name": "Redirect to booking page",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        700
+      ],
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{ $('Config').first().json.booking_url }}",
+        "options": {
+          "responseCode": 302
+        }
+      }
+    },
+    {
+      "id": "3555fd69-e998-410b-af1e-7ab43f169ff3",
+      "name": "Slack on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3300,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9ac89969-3175-47de-aeda-3dea56abad3e",
+              "leftValue": "={{ $('Config').first().json.notify_slack }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "cee7134f-535a-43af-a2bf-8fbdb2b87450",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3520,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.slack_api_base }}/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $('Config').first().json.slack_channel }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Slack on?').item.json.alert_text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hsSlackBotCred01",
+          "name": "Slack bot token (Authorization header)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6d815153-b3be-4c82-a2f1-11d93eb29735",
+      "name": "Email on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3740,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "40298f0c-6e5a-4cfe-aa6b-74ea70c8b1cb",
+              "leftValue": "={{ $('Config').first().json.notify_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "ef659fd9-ea53-41a3-a5d5-d42d739c83a0",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3960,
+        140
+      ],
+      "parameters": {
+        "fromEmail": "={{ $('Config').first().json.email_from }}",
+        "toEmail": "={{ $('Config').first().json.email_to }}",
+        "subject": "={{ $('Slack on?').item.json.alert_subject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Slack on?').item.json.alert_text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "hsSmtpCred000001",
+          "name": "Manager email (SMTP)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Twilio inbound SMS": {
+      "main": [
+        [
+          {
+            "node": "Path: SMS reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking link click": {
+      "main": [
+        [
+          {
+            "node": "Path: link click",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Path: SMS reply": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Path: link click": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Read reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read click",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read reply": {
+      "main": [
+        [
+          {
+            "node": "Valid reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid reply?": {
+      "main": [
+        [
+          {
+            "node": "Record reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record reply": {
+      "main": [
+        [
+          {
+            "node": "Decide reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide reply": {
+      "main": [
+        [
+          {
+            "node": "New reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New reply?": {
+      "main": [
+        [
+          {
+            "node": "Save reply action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save reply action": {
+      "main": [
+        [
+          {
+            "node": "Reply action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply action": {
+      "main": [
+        [
+          {
+            "node": "Send booking link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send booking link": {
+      "main": [
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Describe link failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Describe link failure": {
+      "main": [
+        [
+          {
+            "node": "Mark link failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark link failed": {
+      "main": [
+        [
+          {
+            "node": "Alert text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert text": {
+      "main": [
+        [
+          {
+            "node": "Slack on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack on?": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email on?": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Reply to Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read click": {
+      "main": [
+        [
+          {
+            "node": "Record click",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record click": {
+      "main": [
+        [
+          {
+            "node": "Redirect to booking page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Johannesburg",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": false,
+  "tags": []
+}

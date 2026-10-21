@@ -1,0 +1,40 @@
+{
+  "name": "n8n-missed-call-recovery",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Free n8n kit: text back every missed call with a booking link, respect opt outs and quiet hours, and send a daily report.",
+  "license": "MIT",
+  "author": "Ruan Grobler",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "build:check": "node scripts/build.ts --check",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "demo": "node scripts/demo.ts",
+    "e2e": "node scripts/e2e.ts",
+    "ci": "npm run lint && npm run typecheck && npm run build:check && npm run test:coverage"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "luxon": "3.7.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "@types/luxon": "3.7.6",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "isbot": "3.6.13",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}

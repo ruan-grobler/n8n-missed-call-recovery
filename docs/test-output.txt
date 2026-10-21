@@ -1,0 +1,55 @@
+Real output, recorded on 2026-10-21 with Node v24.13.1 on macOS.
+
+$ npm run lint
+exit code 0
+
+$ npm run typecheck
+exit code 0
+
+$ npm run build:check
+workflows are in sync (3 files)
+exit code 0
+
+$ npm run test:coverage
+ RUN  v5.0.5 /Users/admin/Code/n8n-missed-call-recovery
+      Coverage enabled with v8
+ Test Files  16 passed (16)
+      Tests  179 passed (179)
+   Start at  13:45:07
+   Duration  31.16s (tests 88%, import 9%, worker 1%, transform 1%)
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   97.04 |    87.79 |   96.04 |   97.23 |                   
+ build             |   98.27 |     90.9 |     100 |   98.13 |                   
+  codegen.ts       |   98.68 |    94.87 |     100 |   98.61 | 86                
+  n8n.ts           |   96.87 |    88.23 |     100 |   95.83 | 74,84             
+  workflows.ts     |   98.29 |     62.5 |     100 |   98.27 | 162,172,187       
+ logic             |   99.61 |       97 |     100 |   99.58 |                   
+  alerts.ts        |     100 |    93.33 |     100 |     100 | 14                
+  clock.ts         |     100 |       96 |     100 |     100 | 4,88              
+  phone.ts         |   97.14 |    96.96 |     100 |   97.05 | 37                
+  reply.ts         |     100 |    93.75 |     100 |     100 | 15,38             
+  report.ts        |     100 |    95.83 |     100 |     100 | 99                
+ mocks             |   91.58 |       86 |   84.09 |   93.06 |                   
+  server.ts        |   76.71 |    78.33 |   68.42 |   78.78 | 50,73,77-88,93    
+  smtpSink.ts      |      99 |     91.8 |    92.3 |     100 | 16-25,85,100,104  
+  twilioCore.ts    |     100 |    82.35 |     100 |     100 | 40-42             
+ nodes             |     100 |    94.66 |     100 |     100 |                   
+  alertText.ts     |     100 |    88.88 |     100 |     100 | 22                
+  ...inkFailure.ts |     100 |       50 |     100 |     100 | 13                
+  failureAlert.ts  |     100 |    66.66 |     100 |     100 | 20-22             
+ sim               |   96.62 |    71.16 |   95.45 |   96.45 |                   
+  engine.ts        |     100 |    83.67 |     100 |     100 | ...49,159,165,185 
+  format.ts        |     100 |    66.66 |     100 |     100 | 11-20,23-60       
+  runner.ts        |   93.46 |    65.65 |    90.9 |   92.74 | ...12,235,239,253 
+-------------------|---------|----------|---------|---------|-------------------
+=============================== Coverage summary ===============================
+Statements   : 97.04% ( 1149/1184 )
+Branches     : 87.79% ( 633/721 )
+Functions    : 96.04% ( 267/278 )
+Lines        : 97.23% ( 1056/1086 )
+================================================================================
+exit code 0
+

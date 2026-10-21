@@ -1,0 +1,565 @@
+{
+  "id": "hsDailyReport001",
+  "name": "Missed call recovery 3: daily report",
+  "nodes": [
+    {
+      "id": "7c64a683-27d7-43b9-aedb-c2716777b0f6",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -140
+      ],
+      "parameters": {
+        "content": "## 3. Daily report at 08:00\nCounts yesterday in the business timezone: missed calls, texts sent, replies, bookings clicked and opt outs. It also shows what waited for quiet hours, what was not texted and why, failed sends and duplicate callbacks.\n\nCounts only. No names or numbers, so it is safe for Slack and email.\n\nAfter the report, rows older than retention_days are deleted (POPIA). Opt outs are kept.\n\n**Run report now**: POST {\"date\": \"2026-10-16\"} with the webhook login to get the same report back as JSON.",
+        "width": 480,
+        "height": 440,
+        "color": 4
+      }
+    },
+    {
+      "id": "9a7102f2-5a44-4a77-a8db-2b20df2913a7",
+      "name": "Every day at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a5a15bed-9b12-437d-a84d-ecb509432c06",
+      "name": "Run report now",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "6b024f99-4f26-41b7-ab6c-ce815d6b90e0",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hs/daily-report",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsWebhookAuth001",
+          "name": "Missed call kit webhook login"
+        }
+      }
+    },
+    {
+      "id": "1703518f-be3a-4ff7-a3e4-22657d906b3a",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0e98d1d-7084-4b6e-a5d2-f52294f52aa4",
+              "name": "business_name",
+              "value": "Harbour Slice",
+              "type": "string"
+            },
+            {
+              "id": "330b27db-9bb1-4c58-ab9e-deb3abe5aa1c",
+              "name": "timezone",
+              "value": "Africa/Johannesburg",
+              "type": "string"
+            },
+            {
+              "id": "1ef78592-713d-4624-a988-95a16d8c01cb",
+              "name": "quiet_end",
+              "value": "08:00",
+              "type": "string"
+            },
+            {
+              "id": "a36bc783-19f0-4b66-a1b9-c8ec8331700d",
+              "name": "retention_days",
+              "value": 90,
+              "type": "number"
+            },
+            {
+              "id": "ad911397-8133-40cc-a238-1e53ce364781",
+              "name": "notify_slack",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "dc351eac-e6d8-45ad-a166-e45bb065a461",
+              "name": "notify_email",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "8803b9ad-d5bc-4c39-a5d6-be71fd121750",
+              "name": "slack_api_base",
+              "value": "https://slack.com",
+              "type": "string"
+            },
+            {
+              "id": "a85f97bd-c5f6-4d14-aac1-df285a2301d3",
+              "name": "slack_channel",
+              "value": "#harbour-slice-alerts",
+              "type": "string"
+            },
+            {
+              "id": "1bf7bfb6-3543-4070-a5d2-f52deaeaaa8a",
+              "name": "email_from",
+              "value": "alerts@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "bcc42d3a-1beb-4d4d-a5af-fce7474bc674",
+              "name": "email_to",
+              "value": "manager@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "d913be31-5542-41d0-a3e9-26b89882ddd7",
+              "name": "test_clock_enabled",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "77ef45bc-11b5-4704-aeb5-20068994aa55",
+      "name": "Report window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/reportWindow.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/reportWindow.ts ----\n// Code node \"Report window\" in workflow 3. Yesterday in the business timezone, or the date asked for.\nconst reportWindowNode = (item, realNowIso) => {\n  const headers = readRecord(item.headers);\n  const nowIso = resolveNow(realNowIso, configFlag(item, 'test_clock_enabled'), headers['x-hs-test-clock']);\n  const window = reportWindow(nowIso, configString(item, 'timezone'), readRecord(item.body).date);\n  return {\n    date: window.date,\n    label: window.label,\n    start_iso: window.startIso,\n    end_iso: window.endIso,\n    now_iso: nowIso,\n    retention_before: daysBefore(nowIso, configNumber(item, 'retention_days')),\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: reportWindowNode($input.first().json, $now.toISO()) }];\n"
+      },
+      "notes": "Generated from src/nodes/reportWindow.ts"
+    },
+    {
+      "id": "4f561026-27d4-4ca2-a04e-b934761567fb",
+      "name": "Load day",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Loads one day of activity for the report. No phone numbers leave the database here, only outcomes and times.\n-- $1 window start, $2 window end\nSELECT\n  (SELECT coalesce(json_agg(json_build_object(\n      'outcome', m.outcome,\n      'called_at', m.called_at,\n      'sent_at', m.sent_at,\n      'send_after', m.send_after,\n      'clicked_at', m.clicked_at,\n      'callback_count', m.callback_count)), '[]'::json)\n   FROM hs_missed_calls m\n   WHERE (m.called_at >= $1::timestamptz AND m.called_at < $2::timestamptz)\n      OR (m.sent_at >= $1::timestamptz AND m.sent_at < $2::timestamptz)\n      OR (m.clicked_at >= $1::timestamptz AND m.clicked_at < $2::timestamptz)) AS calls,\n  (SELECT coalesce(json_agg(json_build_object(\n      'intent', r.intent,\n      'action', r.action,\n      'received_at', r.received_at)), '[]'::json)\n   FROM hs_sms_replies r\n   WHERE r.received_at >= $1::timestamptz AND r.received_at < $2::timestamptz) AS replies,\n  (SELECT count(*)::int FROM hs_opt_outs o\n   WHERE o.opted_out_at >= $1::timestamptz AND o.opted_out_at < $2::timestamptz) AS opt_outs",
+        "options": {
+          "queryReplacement": "={{ [ $json.start_iso, $json.end_iso ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "ea4d9b7e-e5da-4c85-aadf-9108dacd0bdd",
+      "name": "Build report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/buildReport.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/report.ts ----\n// Daily report. Counts only, no names or numbers, so it is safe to post in Slack or email (POPIA minimality).\nconst plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;\n\nconst countReport = (data, window) => {\n  const inWindow = (value) => isWithin(toIso(value), window.startIso, window.endIso);\n  const calls = data.calls.filter((call) => inWindow(call.called_at));\n  const byOutcome = (outcome) => calls.filter((call) => call.outcome === outcome).length;\n  const replies = data.replies.filter((reply) => inWindow(reply.received_at));\n  const missedCallTexts = data.calls.filter((call) => inWindow(call.sent_at)).length;\n  const bookingLinksResent = replies.filter((reply) => reply.action === 'link_sent').length;\n  const heldForMorning = calls.filter((call) => {\n    const sendAfter = toIso(call.send_after);\n    return sendAfter !== null && sendAfter >= window.endIso;\n  }).length;\n  const repeatCallers = byOutcome('repeat_caller');\n  const optedOutCallers = byOutcome('opted_out');\n  const noCallerId = byOutcome('no_caller_id');\n  const foreignNumbers = byOutcome('foreign_number');\n  const expired = byOutcome('expired');\n  const failedSends = byOutcome('failed');\n  return {\n    missedCalls: calls.length,\n    textsSent: missedCallTexts + bookingLinksResent,\n    missedCallTexts,\n    bookingLinksResent,\n    replies: replies.length,\n    repliesBook: replies.filter((reply) => reply.intent === 'book').length,\n    repliesOptOut: replies.filter((reply) => reply.intent === 'opt_out').length,\n    repliesOther: replies.filter((reply) => reply.intent === 'other').length,\n    bookingsClicked: data.calls.filter((call) => inWindow(call.clicked_at)).length,\n    optOuts: Number(data.opt_outs ?? 0),\n    heldForMorning,\n    notTexted: repeatCallers + optedOutCallers + noCallerId + foreignNumbers + expired,\n    repeatCallers,\n    optedOutCallers,\n    noCallerId,\n    foreignNumbers,\n    expired,\n    failedSends,\n    stuckSends: byOutcome('claimed') + byOutcome('sending'),\n    duplicateCallbacks: calls.reduce((sum, call) => sum + Math.max(0, Number(call.callback_count ?? 1) - 1), 0),\n    managerAlerts: replies.filter((reply) => ['manager_alerted', 'blocked_opted_out', 'link_failed'].includes(reply.action)).length\n      + byOutcome('failed'),\n  };\n};\n\nconst notTextedDetail = (counts) => {\n  const parts = [\n    counts.repeatCallers > 0 ? plural(counts.repeatCallers, 'repeat caller already texted', 'repeat callers already texted') : '',\n    counts.optedOutCallers > 0 ? plural(counts.optedOutCallers, 'opted out', 'opted out') : '',\n    counts.noCallerId > 0 ? plural(counts.noCallerId, 'no caller ID', 'no caller ID') : '',\n    counts.foreignNumbers > 0 ? plural(counts.foreignNumbers, 'foreign number', 'foreign numbers') : '',\n    counts.expired > 0 ? plural(counts.expired, 'too old to send', 'too old to send') : '',\n  ].filter((part) => part !== '');\n  return parts.length > 0 ? ` (${parts.join(', ')})` : '';\n};\n\nconst buildDailyReport = (data, window, business, quietEnd) => {\n  const counts = countReport(data, window);\n  const lines = [\n    `${business}, missed call report for ${window.label}`,\n    '',\n    `Missed calls: ${counts.missedCalls}`,\n    `Texts sent: ${counts.textsSent} (${plural(counts.missedCallTexts, 'missed call text', 'missed call texts')}, `\n      + `${plural(counts.bookingLinksResent, 'booking link', 'booking links')} on request)`,\n    `Replies: ${counts.replies} (${counts.repliesBook} YES or BOOK, ${counts.repliesOptOut} opt out, `\n      + `${counts.repliesOther} other)`,\n    `Bookings clicked: ${counts.bookingsClicked}`,\n    `Opt outs: ${counts.optOuts}`,\n    '',\n    `Waiting for ${quietEnd} (quiet hours): ${counts.heldForMorning}`,\n    `Not texted: ${counts.notTexted}${notTextedDetail(counts)}`,\n    `Failed sends: ${counts.failedSends}${counts.failedSends > 0 ? ' (manager alerted, call them back)' : ''}`,\n    ...(counts.stuckSends > 0 ? [`Stuck sends: ${counts.stuckSends} (check the n8n executions list)`] : []),\n    `Duplicate callbacks ignored: ${counts.duplicateCallbacks}`,\n    `Manager alerts: ${counts.managerAlerts}`,\n    '',\n    'Counts only. No names or numbers in this report.',\n  ];\n  return {\n    date: window.date,\n    subject: `${business} missed call report, ${window.label}`,\n    text: lines.join('\\n'),\n    counts,\n  };\n};\n\n// ---- src/nodes/buildReport.ts ----\n// Code node \"Build report\" in workflow 3. Input: the row from sql/daily-report.sql and the report window.\nconst asRows = (value) => {\n  const parsed = typeof value === 'string' ? JSON.parse(value) : value;\n  return Array.isArray(parsed) ? parsed : [];\n};\n\nconst buildReportNode = (row, window, cfg) => {\n  const report = buildDailyReport({\n    calls: asRows(row.calls),\n    replies: asRows(row.replies),\n    opt_outs: row.opt_outs,\n  }, {\n    date: String(window.date),\n    label: String(window.label),\n    startIso: String(window.start_iso),\n    endIso: String(window.end_iso),\n  }, configString(cfg, 'business_name'), configString(cfg, 'quiet_end'));\n  return { ...report, alert_subject: report.subject, alert_text: report.text };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: buildReportNode($input.first().json, $('Report window').first().json, $('Config').first().json) }];\n"
+      },
+      "notes": "Generated from src/nodes/buildReport.ts"
+    },
+    {
+      "id": "eef8b2ad-3703-4825-a6ed-dbe149da2100",
+      "name": "Apply retention",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- POPIA retention: deletes call and reply rows older than the cut off. The opt out list is kept on purpose,\n-- because forgetting an opt out would mean texting that person again. $1 retention_before\nWITH calls AS (\n  DELETE FROM hs_missed_calls WHERE called_at < $1::timestamptz RETURNING 1\n), replies AS (\n  DELETE FROM hs_sms_replies WHERE received_at < $1::timestamptz RETURNING 1\n)\nSELECT (SELECT count(*)::int FROM calls) AS calls_deleted, (SELECT count(*)::int FROM replies) AS replies_deleted",
+        "options": {
+          "queryReplacement": "={{ [ $('Report window').first().json.retention_before ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a0d0c1df-1f0b-4800-a8ff-4a13beed2308",
+      "name": "Report done",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2220,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1cb8dbea-9921-4a50-a1bd-64517ed91863",
+              "name": "report",
+              "value": "={{ $('Build report').first().json }}",
+              "type": "object"
+            },
+            {
+              "id": "369c7235-0341-4371-a28a-cf4f3642b6aa",
+              "name": "retention",
+              "value": "={{ $('Apply retention').first().json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "d38efcdb-9399-46bd-ac0a-1d90b29d9231",
+      "name": "Slack on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d8d15f5c-627e-4d8d-a162-501fc476872e",
+              "leftValue": "={{ $('Config').first().json.notify_slack }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "316d66d2-81d3-4f17-a407-6b24b372e6ab",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.slack_api_base }}/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $('Config').first().json.slack_channel }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Slack on?').item.json.alert_text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hsSlackBotCred01",
+          "name": "Slack bot token (Authorization header)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5a4d0cf2-a38b-49e0-a646-5b42d3801e9e",
+      "name": "Email on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f91c6326-b9f2-4059-a60b-c23ecc1d584c",
+              "leftValue": "={{ $('Config').first().json.notify_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "dd7d8bbd-9283-4e4f-a98f-a3507116731d",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "fromEmail": "={{ $('Config').first().json.email_from }}",
+        "toEmail": "={{ $('Config').first().json.email_to }}",
+        "subject": "={{ $('Slack on?').item.json.alert_subject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Slack on?').item.json.alert_text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "hsSmtpCred000001",
+          "name": "Manager email (SMTP)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Every day at 08:00": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run report now": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Report window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report window": {
+      "main": [
+        [
+          {
+            "node": "Load day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load day": {
+      "main": [
+        [
+          {
+            "node": "Build report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report": {
+      "main": [
+        [
+          {
+            "node": "Slack on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack on?": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email on?": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Apply retention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply retention": {
+      "main": [
+        [
+          {
+            "node": "Report done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Johannesburg",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": false,
+  "tags": []
+}

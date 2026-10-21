@@ -1,0 +1,90 @@
+Missed call recovery kit: demo run (synthetic data)
+===================================================
+Driver: in-process engine (same node code and SQL, PGlite, mock APIs)
+Scenario: scenarios/harbour-slice-day.ts (synthetic data, fake numbers, fictional business)
+Events replayed: 131 (calls, duplicate callbacks, answered calls, replies, link taps, 15 minute release ticks, the 08:00 report)
+
+Example text a missed caller receives:
+  Harbour Slice: sorry we missed your call! Book or order here: http://localhost:5678/webhook/hs/book?t=ab62d745eaf3 Reply STOP to opt out.
+
+What happened to every call
+Call When          Status     Caller ID as received             Outcome         Texted
+P01  09 Oct 19:10  no-answer  +27000000031                      sent            09 Oct 19:10
+C01  16 Oct 00:41  no-answer  +27000000001                      sent            16 Oct 08:00
+C02  16 Oct 06:52  no-answer  +27000000002                      sent            16 Oct 08:00
+C03  16 Oct 07:48  busy       +27000000003                      sent            16 Oct 08:00
+C04  16 Oct 09:12  no-answer  +27000000004                      sent            16 Oct 09:12
+C05  16 Oct 10:30  no-answer  +27000000005                      sent            16 Oct 10:30
+C06  16 Oct 11:42  busy       +27000000006                      sent            16 Oct 11:42
+C07  16 Oct 11:58  no-answer  0000000007                        sent            16 Oct 11:58
+C08  16 Oct 12:05  no-answer  +27000000010                      sent            16 Oct 12:05
+C09  16 Oct 12:11  no-answer  +27000000008                      sent            16 Oct 12:11
+C10  16 Oct 12:20  no-answer  +27000000010                      repeat_caller   -
+C11  16 Oct 12:34  busy       +27000000011                      sent            16 Oct 12:34
+C12  16 Oct 12:47  no-answer  anonymous                         no_caller_id    -
+C13  16 Oct 12:55  no-answer  +27000000014                      sent            16 Oct 12:55
+C14  16 Oct 13:20  no-answer  27000000013                       sent            16 Oct 13:20
+C15  16 Oct 13:41  failed     +27000000015                      sent            16 Oct 13:41
+C16  16 Oct 14:25  no-answer  +27000000016                      sent            16 Oct 14:25
+C17  16 Oct 15:05  no-answer  +27000000017                      sent            16 Oct 15:05
+C18  16 Oct 16:40  no-answer  +27 (0)00 000 0018                sent            16 Oct 16:40
+C19  16 Oct 17:31  busy       +27000000019                      sent            16 Oct 17:31
+C20  16 Oct 17:44  no-answer  +27000000021                      sent            16 Oct 17:44
+C21  16 Oct 17:52  busy       +27000000022                      sent            16 Oct 17:52
+C22  16 Oct 18:03  no-answer  +27000000023                      sent            16 Oct 18:03
+C23  16 Oct 18:09  busy       +27000000024                      sent            16 Oct 18:09
+C24  16 Oct 18:15  no-answer  sip:+27000000025@pbx.example.com  sent            16 Oct 18:15
+C25  16 Oct 18:22  busy       +266696687                        no_caller_id    -
+C26  16 Oct 18:30  no-answer  +27000000026                      sent            16 Oct 18:30
+C27  16 Oct 18:40  no-answer  +27000000031                      opted_out       -
+C28  16 Oct 18:48  busy       +27000000027                      sent            16 Oct 18:48
+C29  16 Oct 18:55  no-answer  +44 000 000 0000                  foreign_number  -
+C30  16 Oct 19:04  no-answer  +27000000028                      sent            16 Oct 19:04
+C31  16 Oct 19:12  no-answer  +27000000035                      failed          -
+C32  16 Oct 19:26  busy       +27000000029                      sent            16 Oct 19:26
+C33  16 Oct 19:40  no-answer  +27000000030                      sent            16 Oct 19:40
+C34  16 Oct 19:55  no-answer  +27000000014                      opted_out       -
+C35  16 Oct 20:18  failed     +27000000032                      sent            16 Oct 20:18
+C36  16 Oct 20:52  no-answer  +27000000033                      sent            16 Oct 20:52
+C37  16 Oct 21:06  no-answer  +27000000034                      sent            17 Oct 08:00
+C38  16 Oct 21:48  busy       +27000000036                      sent            17 Oct 08:00
+C39  16 Oct 22:10  no-answer  +27000000020                      sent            17 Oct 08:00
+C40  16 Oct 22:40  no-answer  +27000000020                      repeat_caller   -
+
+Daily report sent to Slack and email at 08:00 the next morning
+--------------------------------------------------------------
+Harbour Slice, missed call report for Friday 16 October 2026
+
+Missed calls: 40
+Texts sent: 33 (29 missed call texts, 4 booking links on request)
+Replies: 10 (5 YES or BOOK, 3 opt out, 2 other)
+Bookings clicked: 13
+Opt outs: 3
+
+Waiting for 08:00 (quiet hours): 3
+Not texted: 7 (2 repeat callers already texted, 2 opted out, 2 no caller ID, 1 foreign number)
+Failed sends: 1 (manager alerted, call them back)
+Duplicate callbacks ignored: 4
+Manager alerts: 4
+
+Counts only. No names or numbers in this report.
+--------------------------------------------------------------
+
+Checks against the hand written answer key: 12 of 12 passed
+PASS  Every call ends with the outcome in the answer key: 41 of 41 calls match
+PASS  Exactly one text per texted call, none for the rest: 33 missed call texts for 33 texted calls
+PASS  Duplicate webhooks send nothing twice: 4 duplicate callbacks and 1 duplicate reply, 0 extra texts
+PASS  Answered calls are ignored: answered calls sent no text
+PASS  No text goes out between 21:00 and 08:00: 37 texts, all between 08:00 and 21:00
+PASS  Quiet hours calls are texted at 08:00: 6 queued calls texted at 08:00
+PASS  Nobody is texted after opting out: 4 opt outs, 0 texts after them
+PASS  Every reply gets the right action: 11 replies stored once each
+PASS  Link taps redirect, preview bots are ignored: 17 taps, bot got 403
+PASS  Report numbers match the hand count: 21 numbers match
+PASS  Report carries no phone numbers: counts only
+PASS  Manager alerts and the report reach Slack and email: 5 Slack posts, 5 emails
+
+Before (synthetic baseline, no automation): 40 missed calls, 0 follow up texts.
+After (same synthetic day, this kit): 32 of 40 missed callers got a booking link text (29 the same day, 3 at 08:00 the next morning).
+  13 of them tapped the booking link. 0 texts in quiet hours, 0 double texts, 0 texts after an opt out.
+Estimate, not measured: if 1 in 3 taps becomes an order worth R250, that is about 4 orders, about R1,000 for this one day.

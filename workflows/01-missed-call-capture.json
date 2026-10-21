@@ -1,0 +1,1359 @@
+{
+  "id": "hsMissedCallCapt",
+  "name": "Missed call recovery 1: capture and text back",
+  "nodes": [
+    {
+      "id": "f71ca930-5e23-4fce-aa19-5e0ce245dbbc",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -260
+      ],
+      "parameters": {
+        "content": "## 1. Missed call capture\nTwilio posts here when a forwarded call ends as **no-answer**, **busy** or **failed**.\n\n1. **Read call status** turns the caller number into E.164.\n2. **Claim call** stores the call in Postgres. The key is ParentCallSid (or CallSid), so a retried or duplicate callback never sends a second text.\n3. **Decide** skips opted out numbers, withheld caller IDs, foreign numbers and repeat callers.\n4. Between **quiet_start and quiet_end** (21:00 to 08:00) the text waits in the queue. The 15 minute schedule sends it from 08:00.\n5. **Send SMS via Twilio** sends one text with a tracked booking link. If Twilio refuses it, the row is marked failed and the manager is alerted. There is no automatic resend, because a timed out request may already have gone out.\n\nCode nodes are generated from TypeScript in `src/`. Edit there, run `npm run build`, re-import.",
+        "width": 500,
+        "height": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "f2eaf23e-cc23-44e4-a3d7-d0b2a782230d",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        300
+      ],
+      "parameters": {
+        "content": "## Setup\n**Credentials** (create once, reuse in all three workflows)\n- Missed call kit Postgres\n- Twilio API: Basic Auth. User is your Account SID, password is your Auth Token\n- Missed call kit webhook login: Basic Auth, any user name and a long random password\n- Slack bot token: Header Auth, name `Authorization`, value `Bearer` plus your bot token\n- Manager email (SMTP), only if notify_email is on\n\n**Config node**: business name, Twilio number, Account SID and the tracked link base (your n8n URL plus /webhook/hs/book).\n\n**Run once: create tables** creates the Postgres tables.\n\n**Twilio**: dial your shop phone from a TwiML Bin and send the status callback here. Put the webhook login in the URL:\n`https://USER:PASSWORD@your-n8n/webhook/hs/missed-call`",
+        "width": 500,
+        "height": 560,
+        "color": 6
+      }
+    },
+    {
+      "id": "9eb7a49e-a2dd-4e4d-a231-173dce5a06d4",
+      "name": "POPIA",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        900
+      ],
+      "parameters": {
+        "content": "## POPIA\n- The opt out list is checked at every send, including texts released at 08:00.\n- No texts in quiet hours. They wait until quiet_end.\n- Customer message text is never stored.\n- Workflow 3 deletes rows older than retention_days. Opt outs are kept, so nobody is texted again.",
+        "width": 500,
+        "height": 240,
+        "color": 5
+      }
+    },
+    {
+      "id": "34029f92-666b-442e-ab10-a33d5fe48b1f",
+      "name": "Twilio call status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "3448eeef-f5f5-40a6-a6e8-f3d131d90990",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hs/missed-call",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "responseData": "noData",
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsWebhookAuth001",
+          "name": "Missed call kit webhook login"
+        }
+      }
+    },
+    {
+      "id": "38795fa8-8afe-41bb-a63d-e2e1a7a1b4f9",
+      "name": "Every 15 min, 08:00 to 20:45",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        520
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 8-20 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "84ab1170-a986-4d8e-a22c-964d543303fb",
+      "name": "Release queue now",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        700
+      ],
+      "webhookId": "c722e97d-5ae9-4d93-a4b3-e6532639a29c",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hs/release-queue",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "responseData": "noData",
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsWebhookAuth001",
+          "name": "Missed call kit webhook login"
+        }
+      }
+    },
+    {
+      "id": "f4db15f0-70a0-4e7d-a54b-e796ee6be01a",
+      "name": "Path: call status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5c519a03-1e8d-49af-aca8-269941b4d7c5",
+              "name": "route",
+              "value": "call_status",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "ba2acbae-bf3c-49a4-a4e1-2f50227f8719",
+      "name": "Path: release queue",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        600
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a27a35c2-59d8-46fc-a008-d41701b75542",
+              "name": "route",
+              "value": "release",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "6fc9887d-38b4-4675-af0d-e11b3f122504",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        400
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c6ce4a29-4804-4f6b-a665-a1cd0e7ac93c",
+              "name": "business_name",
+              "value": "Harbour Slice",
+              "type": "string"
+            },
+            {
+              "id": "8310c9e9-a703-4a41-a06c-2bd1498195eb",
+              "name": "timezone",
+              "value": "Africa/Johannesburg",
+              "type": "string"
+            },
+            {
+              "id": "18d1df88-2de4-4209-a71e-0e4d66646b80",
+              "name": "quiet_start",
+              "value": "21:00",
+              "type": "string"
+            },
+            {
+              "id": "70ecfa29-3728-4b2d-ae5a-b3a40b49ad75",
+              "name": "quiet_end",
+              "value": "08:00",
+              "type": "string"
+            },
+            {
+              "id": "0039b7ff-3ed8-4afd-ab56-95d6f03431b4",
+              "name": "missed_statuses",
+              "value": "no-answer,busy,failed",
+              "type": "string"
+            },
+            {
+              "id": "545f817d-6137-4823-ad03-4cca43ddf8ee",
+              "name": "allowed_country_prefixes",
+              "value": "+27",
+              "type": "string"
+            },
+            {
+              "id": "5976ef9d-94f6-4906-ab63-e8984f6d8ea8",
+              "name": "repeat_cooldown_minutes",
+              "value": 360,
+              "type": "number"
+            },
+            {
+              "id": "ee7cf637-c2c2-486a-a1a4-ebf58e572e59",
+              "name": "stale_after_hours",
+              "value": 16,
+              "type": "number"
+            },
+            {
+              "id": "2c371b74-6c20-48e0-a607-5b18444e389e",
+              "name": "tracked_link_base",
+              "value": "https://n8n.example.com/webhook/hs/book",
+              "type": "string"
+            },
+            {
+              "id": "06e7bc6b-fc8d-410a-a7a2-7fddc53b9f06",
+              "name": "sms_template",
+              "value": "{business}: sorry we missed your call! Book or order here: {link} Reply STOP to opt out.",
+              "type": "string"
+            },
+            {
+              "id": "3ab78a97-1636-499f-a41f-b8b431f19d78",
+              "name": "twilio_api_base",
+              "value": "https://api.twilio.com",
+              "type": "string"
+            },
+            {
+              "id": "fcc5deb7-0ff8-4988-a3da-5e36a08e94e8",
+              "name": "twilio_account_sid",
+              "value": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "type": "string"
+            },
+            {
+              "id": "74fab337-ba2f-4b1f-ac7f-2cc567c3b3c9",
+              "name": "twilio_from",
+              "value": "+27000000000",
+              "type": "string"
+            },
+            {
+              "id": "9ea949f0-dcae-4df8-a06a-628ffbe3b930",
+              "name": "notify_slack",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "2dd00014-8d2e-42aa-a20b-7c5945b9f83e",
+              "name": "notify_email",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "30f85c90-f2d0-44fe-a857-a438d03f2142",
+              "name": "slack_api_base",
+              "value": "https://slack.com",
+              "type": "string"
+            },
+            {
+              "id": "781ba4cd-f3d5-4659-af0f-2891f6304e84",
+              "name": "slack_channel",
+              "value": "#harbour-slice-alerts",
+              "type": "string"
+            },
+            {
+              "id": "7dcc2c8b-a4bd-4195-a889-879bcee75b0f",
+              "name": "email_from",
+              "value": "alerts@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "e981f256-9bd8-4bed-a024-f1c67cced3b2",
+              "name": "email_to",
+              "value": "manager@harbourslice.example.com",
+              "type": "string"
+            },
+            {
+              "id": "b27b9a7b-30cf-4fd0-ac2d-ebaa7406dbf0",
+              "name": "test_clock_enabled",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "7ebe87ce-3680-4621-a3a4-ac591ed32f9e",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        660,
+        400
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "065a82ef-70c1-4b3e-a904-27971c854435",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "call_status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "call status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "69e2666e-a631-4021-a9d3-1b6b963bc4e7",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "release",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "release queue"
+            }
+          ]
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "c0355029-47d4-447f-ad1f-20c071cc1cbe",
+      "name": "Read call status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/readCallStatus.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/callStatus.ts ----\n// Reads a Twilio voice status callback and decides whether it is a missed call worth texting.\nconst SID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;\n\nconst readSid = (value) => {\n  const text = String(value ?? '').trim();\n  return SID_PATTERN.test(text) ? text : null;\n};\n\nconst parseStatusList = (value) => String(value ?? '')\n  .split(',')\n  .map((status) => status.trim().toLowerCase())\n  .filter((status) => status !== '');\n\n// Idempotency key: ParentCallSid when present, else CallSid.\n// A <Dial> that rings two handsets sends one callback per handset for the same customer call.\n// Keying on the parent call means that customer still gets exactly one text.\nconst parseStatusCallback = (body, options) => {\n  const callSid = readSid(body.CallSid);\n  const parentCallSid = readSid(body.ParentCallSid);\n  const callStatus = String(body.CallStatus ?? body.DialCallStatus ?? '').trim().toLowerCase();\n  const calledAtIso = parseTwilioTimestamp(body.Timestamp) ?? options.nowIso;\n  const base = {\n    isMissed: false,\n    ignoreReason: null,\n    callKey: parentCallSid ?? callSid ?? '',\n    callSid: callSid ?? '',\n    parentCallSid,\n    callStatus,\n    callerE164: null,\n    callerIssue: null,\n    calledAtIso,\n  };\n  if (!callSid) {\n    return { ...base, ignoreReason: 'no CallSid in the callback' };\n  }\n  if (!options.missedStatuses.includes(callStatus)) {\n    return { ...base, ignoreReason: `status ${callStatus || 'empty'} is not a missed call` };\n  }\n  const phone = normalisePhone(body.From ?? body.Caller);\n  if (!phone.ok) {\n    return { ...base, isMissed: true, callerIssue: phone.issue };\n  }\n  if (!isAllowedCountry(phone.e164, options.allowedPrefixes)) {\n    return { ...base, isMissed: true, callerE164: phone.e164, callerIssue: 'foreign' };\n  }\n  return { ...base, isMissed: true, callerE164: phone.e164 };\n};\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/readCallStatus.ts ----\n// Code node \"Read call status\" in workflow 1. Input: the Config item, which carries the webhook request.\nconst readCallStatus = (item, realNowIso) => {\n  const headers = readRecord(item.headers);\n  const nowIso = resolveNow(realNowIso, configFlag(item, 'test_clock_enabled'), headers['x-hs-test-clock']);\n  const call = parseStatusCallback(readRecord(item.body), {\n    missedStatuses: parseStatusList(configString(item, 'missed_statuses')),\n    allowedPrefixes: parsePrefixList(configString(item, 'allowed_country_prefixes')),\n    nowIso,\n  });\n  return {\n    is_missed: call.isMissed,\n    ignore_reason: call.ignoreReason,\n    call_key: call.callKey,\n    call_sid: call.callSid,\n    parent_call_sid: call.parentCallSid,\n    call_status: call.callStatus,\n    caller_e164: call.callerE164,\n    caller_issue: call.callerIssue,\n    called_at: call.calledAtIso,\n    now_iso: nowIso,\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: readCallStatus($input.first().json, $now.toISO()) }];\n"
+      },
+      "notes": "Generated from src/nodes/readCallStatus.ts"
+    },
+    {
+      "id": "32068e81-3488-4c55-ae57-bc96cc986949",
+      "name": "Missed call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8796c0c2-8d0d-42d7-aefc-1377108e4f2f",
+              "leftValue": "={{ $json.is_missed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "02292533-f046-4b92-a4d0-d20a06553435",
+      "name": "Claim call",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Claims a missed call exactly once. call_key is the idempotency key, so a retried or duplicate\n-- Twilio callback only bumps callback_count and never produces a second text.\n-- $1 call_key, $2 call_sid, $3 caller_e164 (or null), $4 call_status, $5 called_at, $6 now\nWITH claim AS (\n  INSERT INTO hs_missed_calls (call_key, call_sid, caller_e164, call_status, called_at, received_at, outcome, link_token)\n  VALUES ($1::text, $2::text, NULLIF($3::text, ''), $4::text, $5::timestamptz, $6::timestamptz, 'claimed',\n          substr(replace(gen_random_uuid()::text, '-', ''), 1, 12))\n  ON CONFLICT (call_key) DO UPDATE SET callback_count = hs_missed_calls.callback_count + 1\n  RETURNING call_key, caller_e164, link_token, callback_count\n)\nSELECT\n  c.call_key,\n  c.caller_e164,\n  c.link_token,\n  c.callback_count,\n  EXISTS (SELECT 1 FROM hs_opt_outs o WHERE o.phone_e164 = c.caller_e164) AS opted_out,\n  (SELECT max(m.sent_at) FROM hs_missed_calls m\n    WHERE m.caller_e164 = c.caller_e164 AND m.call_key <> c.call_key AND m.outcome = 'sent') AS last_sent_at,\n  EXISTS (SELECT 1 FROM hs_missed_calls m\n    WHERE m.caller_e164 = c.caller_e164 AND m.call_key <> c.call_key AND m.outcome = 'queued') AS has_queued\nFROM claim c",
+        "options": {
+          "queryReplacement": "={{ [ $json.call_key, $json.call_sid, $json.caller_e164 ?? null, $json.call_status, $json.called_at, $json.now_iso ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "9ecb0f05-8e75-469f-a18a-45735e553d3e",
+      "name": "Decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/decideCall.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/decide.ts ----\n// What to do with a missed call once the database has claimed it.\nconst decideMissedCall = (claim, callerIssue, options) => {\n  if (Number(claim.callback_count) !== 1) {\n    return { action: 'duplicate', reason: `callback number ${String(claim.callback_count)} for this call, already handled` };\n  }\n  if (callerIssue === 'withheld' || callerIssue === 'invalid') {\n    return { action: 'skip', outcome: 'no_caller_id', reason: `caller ID ${callerIssue}` };\n  }\n  if (callerIssue === 'foreign') {\n    return { action: 'skip', outcome: 'foreign_number', reason: 'number outside the allowed countries' };\n  }\n  if (claim.opted_out === true) {\n    return { action: 'skip', outcome: 'opted_out', reason: 'this number opted out' };\n  }\n  if (claim.has_queued === true) {\n    return { action: 'skip', outcome: 'repeat_caller', reason: 'a text to this number is already waiting for quiet hours to end' };\n  }\n  const lastSentIso = toIso(claim.last_sent_at);\n  if (lastSentIso && options.repeatCooldownMinutes > 0\n    && minutesBetween(lastSentIso, options.nowIso) < options.repeatCooldownMinutes) {\n    return { action: 'skip', outcome: 'repeat_caller', reason: `already texted within ${options.repeatCooldownMinutes} minutes` };\n  }\n  if (isQuietHours(options.nowIso, options.timezone, options.quietStart, options.quietEnd)) {\n    return {\n      action: 'queue',\n      sendAfterIso: nextQuietEnd(options.nowIso, options.timezone, options.quietEnd),\n      reason: `quiet hours ${options.quietStart} to ${options.quietEnd}`,\n    };\n  }\n  return { action: 'send', reason: 'missed call, outside quiet hours' };\n};\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/decideCall.ts ----\n// Code node \"Decide\" in workflow 1. Input: the claimed row, the parsed call and the Config item.\nconst asIssue = (value) => value === 'withheld' || value === 'invalid' || value === 'foreign' ? value : null;\n\nconst decideCall = (claim, call, cfg) => {\n  const nowIso = String(call.now_iso);\n  const decision = decideMissedCall({\n    callback_count: claim.callback_count,\n    opted_out: claim.opted_out,\n    last_sent_at: claim.last_sent_at,\n    has_queued: claim.has_queued,\n  }, asIssue(call.caller_issue), {\n    nowIso,\n    timezone: configString(cfg, 'timezone'),\n    quietStart: configString(cfg, 'quiet_start'),\n    quietEnd: configString(cfg, 'quiet_end'),\n    repeatCooldownMinutes: configNumber(cfg, 'repeat_cooldown_minutes'),\n  });\n  return {\n    action: decision.action,\n    outcome: decision.action === 'skip' ? decision.outcome : null,\n    send_after: decision.action === 'queue' ? decision.sendAfterIso : null,\n    reason: decision.reason,\n    call_key: String(claim.call_key ?? call.call_key),\n    caller_e164: typeof claim.caller_e164 === 'string' ? claim.caller_e164 : null,\n    link_token: String(claim.link_token ?? ''),\n    now_iso: nowIso,\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: decideCall($input.first().json, $('Read call status').first().json, $('Config').first().json) }];\n"
+      },
+      "notes": "Generated from src/nodes/decideCall.ts"
+    },
+    {
+      "id": "ed226c8f-d77d-47b9-af9f-0c268a07e539",
+      "name": "Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1760,
+        180
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "241d0381-1760-473e-abe5-87738079daf3",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "send",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "send"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fcd54d21-c8ea-4f5a-a5b9-53a3745717e0",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "queue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "queue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b94e56ea-1755-4bad-a011-0746bf88605d",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "skip",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "not texted"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "640f0169-03de-4374-a35b-c9471ddf5878",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "duplicate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "duplicate"
+            }
+          ]
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "4f9e4372-00c3-439b-accb-0af9234aa3e0",
+      "name": "Mark queued",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        320
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what happened to a claimed call. Used by the queued, not texted, sent and failed steps.\n-- $1 call_key, $2 outcome, $3 send_after, $4 sent_at, $5 sms_sid, $6 last_error (null keeps the old value)\nUPDATE hs_missed_calls SET\n  outcome = $2::text,\n  send_after = COALESCE($3::timestamptz, send_after),\n  sent_at = COALESCE($4::timestamptz, sent_at),\n  sms_sid = COALESCE($5::text, sms_sid),\n  last_error = COALESCE($6::text, last_error)\nWHERE call_key = $1::text\nRETURNING call_key, outcome, caller_e164, called_at, last_error",
+        "options": {
+          "queryReplacement": "={{ [ $json.call_key, 'queued', $json.send_after, null, null, null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "313f9a40-d3e2-4b2a-af37-9a9b62ffb97b",
+      "name": "Mark not texted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        480
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what happened to a claimed call. Used by the queued, not texted, sent and failed steps.\n-- $1 call_key, $2 outcome, $3 send_after, $4 sent_at, $5 sms_sid, $6 last_error (null keeps the old value)\nUPDATE hs_missed_calls SET\n  outcome = $2::text,\n  send_after = COALESCE($3::timestamptz, send_after),\n  sent_at = COALESCE($4::timestamptz, sent_at),\n  sms_sid = COALESCE($5::text, sms_sid),\n  last_error = COALESCE($6::text, last_error)\nWHERE call_key = $1::text\nRETURNING call_key, outcome, caller_e164, called_at, last_error",
+        "options": {
+          "queryReplacement": "={{ [ $json.call_key, $json.outcome, null, null, null, null ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "21626fb0-5b2c-4770-a9a0-feca5ff16b25",
+      "name": "Release window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/releaseWindow.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/releaseWindow.ts ----\n// Code node \"Release window\" in workflow 1. Decides whether queued texts may go out right now.\nconst releaseWindow = (item, realNowIso) => {\n  const headers = readRecord(item.headers);\n  const nowIso = resolveNow(realNowIso, configFlag(item, 'test_clock_enabled'), headers['x-hs-test-clock']);\n  const quiet = isQuietHours(nowIso, configString(item, 'timezone'), configString(item, 'quiet_start'), configString(item, 'quiet_end'));\n  return {\n    release: !quiet,\n    reason: quiet ? 'still quiet hours, nothing goes out' : 'outside quiet hours, due texts can go out',\n    now_iso: nowIso,\n    stale_before: hoursBefore(nowIso, configNumber(item, 'stale_after_hours')),\n  };\n};\n\n// ---- n8n entry point ----\nreturn [{ json: releaseWindow($input.first().json, $now.toISO()) }];\n"
+      },
+      "notes": "Generated from src/nodes/releaseWindow.ts"
+    },
+    {
+      "id": "14a1e419-492f-4e3c-a151-80242f327467",
+      "name": "Outside quiet hours?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2ec01394-e64b-4925-a164-866780e9346c",
+              "leftValue": "={{ $json.release }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "1ca39113-f9f9-4cc2-a228-8325a92d5bef",
+      "name": "Claim due texts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Releases texts that waited for quiet hours to end. The opt out list is checked again here, at send time,\n-- so someone who opted out overnight is never texted. Texts older than the stale cut off are dropped.\n-- $1 now, $2 stale_before\nWITH due AS (\n  SELECT call_key FROM hs_missed_calls\n  WHERE outcome = 'queued' AND send_after <= $1::text::timestamptz\n  ORDER BY send_after, called_at\n  LIMIT 200\n  FOR UPDATE SKIP LOCKED\n)\nUPDATE hs_missed_calls m SET outcome = CASE\n    WHEN EXISTS (SELECT 1 FROM hs_opt_outs o WHERE o.phone_e164 = m.caller_e164) THEN 'opted_out'\n    WHEN m.called_at < $2::timestamptz THEN 'expired'\n    ELSE 'sending'\n  END\nFROM due\nWHERE m.call_key = due.call_key\nRETURNING m.call_key, m.caller_e164, m.link_token, m.outcome, $1::text AS now_iso",
+        "options": {
+          "queryReplacement": "={{ [ $json.now_iso, $json.stale_before ] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "9116f2d6-c6e3-4fa9-a4f9-26c35136ef79",
+      "name": "Prepare SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        20
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/prepareSms.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/logic/sms.ts ----\n// SMS text helpers. One GSM-7 segment is 160 characters, so the default copy is kept under that.\n// Fills {business} and {link} style placeholders. Unknown placeholders are left as they are.\nconst renderTemplate = (template, values) => template.replace(/\\{(\\w+)\\}/g, (whole, key) => values[key] ?? whole);\n\n// The tracked link counts the tap, then redirects to the real booking page.\nconst trackedLink = (linkBase, token) => `${linkBase}${linkBase.includes('?') ? '&' : '?'}t=${encodeURIComponent(token)}`;\n\nconst GSM7_BASIC = '@£$¥èéùìòÇ\\nØø\\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&\\'()*+,-./0123456789:;<=>?'\n  + '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';\n\nconst GSM7_EXTENDED = '^{}\\\\[~]|€\\f';\n\nconst smsSegments = (text) => {\n  const chars = Array.from(text);\n  const gsm = chars.every((char) => GSM7_BASIC.includes(char) || GSM7_EXTENDED.includes(char));\n  if (gsm) {\n    const units = chars.reduce((sum, char) => sum + (GSM7_EXTENDED.includes(char) ? 2 : 1), 0);\n    return { encoding: 'GSM-7', units, segments: units <= 160 ? 1 : Math.ceil(units / 153) };\n  }\n  const units = chars.reduce((sum, char) => sum + (char.length > 1 ? 2 : 1), 0);\n  return { encoding: 'UCS-2', units, segments: units <= 70 ? 1 : Math.ceil(units / 67) };\n};\n\n// Twilio's Messages API lives under the account. The base URL is configurable for regions and for mocks.\nconst twilioMessagesUrl = (apiBase, accountSid) => `${apiBase.replace(/\\/+$/, '')}/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;\n\n// ---- src/nodes/prepareSms.ts ----\n// Code node \"Prepare SMS\" in workflow 1. Takes \"send\" decisions or released queue rows and builds the Twilio request.\n// Live decisions carry action \"send\". Released queue rows carry outcome \"sending\".\n// Anything else (opted out at release time, expired, the Postgres \"success\" placeholder) is skipped.\nconst prepareSms = (inputs, cfg) => inputs\n  .filter((input) => (input.action === 'send' || input.outcome === 'sending')\n  && typeof input.caller_e164 === 'string' && input.caller_e164 !== ''\n  && typeof input.link_token === 'string' && input.link_token !== '')\n  .map((input) => {\n  const body = renderTemplate(configString(cfg, 'sms_template'), {\n    business: configString(cfg, 'business_name'),\n    link: trackedLink(configString(cfg, 'tracked_link_base'), String(input.link_token)),\n  });\n  return {\n    call_key: String(input.call_key),\n    sms_to: String(input.caller_e164),\n    sms_from: configString(cfg, 'twilio_from'),\n    sms_body: body,\n    segments: smsSegments(body).segments,\n    twilio_messages_url: twilioMessagesUrl(configString(cfg, 'twilio_api_base'), configString(cfg, 'twilio_account_sid')),\n    now_iso: String(input.now_iso),\n  };\n});\n\n// ---- n8n entry point ----\nreturn prepareSms($input.all().map((item) => item.json), $('Config').first().json).map((json) => ({ json }));\n"
+      },
+      "notes": "Generated from src/nodes/prepareSms.ts"
+    },
+    {
+      "id": "959eb21b-9c4a-400f-a8b4-f1ec75534e7e",
+      "name": "Send SMS via Twilio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2220,
+        20
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.twilio_messages_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.sms_to }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $json.sms_from }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.sms_body }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hsTwilioApiCred1",
+          "name": "Twilio API (Account SID and Auth Token)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "76d986bd-0011-4368-adde-dbf82ba56faf",
+      "name": "Mark sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2440,
+        -80
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what happened to a claimed call. Used by the queued, not texted, sent and failed steps.\n-- $1 call_key, $2 outcome, $3 send_after, $4 sent_at, $5 sms_sid, $6 last_error (null keeps the old value)\nUPDATE hs_missed_calls SET\n  outcome = $2::text,\n  send_after = COALESCE($3::timestamptz, send_after),\n  sent_at = COALESCE($4::timestamptz, sent_at),\n  sms_sid = COALESCE($5::text, sms_sid),\n  last_error = COALESCE($6::text, last_error)\nWHERE call_key = $1::text\nRETURNING call_key, outcome, caller_e164, called_at, last_error",
+        "options": {
+          "queryReplacement": "={{ [ $('Prepare SMS').item.json.call_key, 'sent', null, $('Prepare SMS').item.json.now_iso, $json.sid ?? null, null ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "f19ffde8-3ece-4278-a790-0157e212ead1",
+      "name": "Describe failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/describeFailure.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/alerts.ts ----\n// Messages for the manager. These do contain the caller's number, because the manager needs to act on them.\n// Pulls the useful part out of whatever n8n stored for a failed Twilio request.\n// Twilio errors look like {\"code\":21614,\"message\":\"'To' number is not a valid mobile number\",...}.\n// n8n may nest that body inside its own error object, sometimes as an escaped string.\nconst describeTwilioError = (raw) => {\n  const text = (typeof raw === 'string' ? raw : JSON.stringify(raw ?? '')).replace(/\\\\+\"/g, '\"');\n  const code = /\"code\"\\s*:\\s*\"?(\\d{5})\\b/.exec(text);\n  const messagePattern = /\"message\"\\s*:\\s*\"([^\"]{1,300})\"/;\n  if (code) {\n    const after = messagePattern.exec(text.slice(code.index, code.index + 400));\n    const before = messagePattern.exec(text.slice(Math.max(0, code.index - 400), code.index));\n    const message = after?.[1] ?? before?.[1];\n    return message ? `${message} (Twilio error ${code[1]})` : `Twilio error ${code[1]}`;\n  }\n  const message = messagePattern.exec(text);\n  return message?.[1] ?? (text.slice(0, 200) || 'unknown error');\n};\n\nconst failedSmsAlert = (business, callerE164, calledAtIso, timezone, error) => ({\n  alert_subject: `${business}: a missed caller could not be texted`,\n  alert_text: `${business}: we could not text a missed caller (${formatPhoneForPeople(callerE164)}, called at `\n    + `${localTimeLabel(calledAtIso, timezone)}). ${error}. Please call them back.`,\n});\n\nconst replyAlert = (business, fromE164, receivedAtIso, timezone, preview, blockedOptOut) => {\n  const who = formatPhoneForPeople(fromE164);\n  const at = localTimeLabel(receivedAtIso, timezone);\n  if (blockedOptOut) {\n    return {\n      alert_subject: `${business}: opted out customer asked for the booking link`,\n      alert_text: `${business}: ${who} asked for the booking link at ${at} (\"${preview}\"), but this number opted out `\n        + 'earlier, so the kit did not text them. Phone them if you want to help.',\n    };\n  }\n  return {\n    alert_subject: `${business}: new SMS reply from a missed caller`,\n    alert_text: `${business}: ${who} replied at ${at}: \"${preview}\". Reply to them from the shop phone.`,\n  };\n};\n\nconst linkFailedAlert = (business, fromE164, error) => ({\n  alert_subject: `${business}: booking link could not be sent`,\n  alert_text: `${business}: ${formatPhoneForPeople(fromE164)} asked for the booking link, but the SMS failed. `\n    + `${error}. Please send it by hand.`,\n});\n\n// ---- src/nodes/describeFailure.ts ----\n// Code node \"Describe failure\" in workflow 1. Turns n8n's raw HTTP error into one readable line for the log row.\nconst describeFailure = (errorItem, prepared) => ({\n  call_key: String(prepared.call_key ?? ''),\n  caller_e164: String(prepared.sms_to ?? ''),\n  error_text: describeTwilioError({ error: errorItem.error, details: errorItem.details }),\n});\n\n// ---- n8n entry point ----\nreturn $input.all().map((item, index) => ({ json: describeFailure(item.json, $('Prepare SMS').itemMatching(index).json) }));\n"
+      },
+      "notes": "Generated from src/nodes/describeFailure.ts"
+    },
+    {
+      "id": "dabc7e91-1be6-4ce3-a691-1c50f7d61862",
+      "name": "Mark failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2660,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Records what happened to a claimed call. Used by the queued, not texted, sent and failed steps.\n-- $1 call_key, $2 outcome, $3 send_after, $4 sent_at, $5 sms_sid, $6 last_error (null keeps the old value)\nUPDATE hs_missed_calls SET\n  outcome = $2::text,\n  send_after = COALESCE($3::timestamptz, send_after),\n  sent_at = COALESCE($4::timestamptz, sent_at),\n  sms_sid = COALESCE($5::text, sms_sid),\n  last_error = COALESCE($6::text, last_error)\nWHERE call_key = $1::text\nRETURNING call_key, outcome, caller_e164, called_at, last_error",
+        "options": {
+          "queryReplacement": "={{ [ $json.call_key, 'failed', null, null, null, $json.error_text ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "137da33c-962e-448c-acc2-0b9b29bc1e7d",
+      "name": "Failure alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// GENERATED by \"npm run build\" from src/nodes/failureAlert.ts and the files it imports. Do not edit here.\n// Change the TypeScript, run \"npm run build\", then re-import the workflow.\n// test/drift.test.ts fails if this code and the TypeScript drift apart.\n\n// ---- src/logic/phone.ts ----\n// Phone number helpers. South Africa (+27) is the default country.\n// Twilio reports a withheld caller ID as \"anonymous\" or as +266696687 (ANONYMOUS on a keypad).\nconst WITHHELD_CALLER_IDS = [\n  '',\n  'anonymous',\n  'restricted',\n  'unknown',\n  'private',\n  'unavailable',\n  'blocked',\n  '+266696687',\n  '266696687',\n];\n\nconst E164_PATTERN = /^\\+[1-9]\\d{6,14}$/;\n\n// Turns whatever the phone system sends into E.164, for example \"+27000000012\".\n// Handles \"082 ...\", \"27 82 ...\", \"0027 ...\", \"+27 (0)82 ...\" and \"sip:+27...@host\".\nconst normalisePhone = (raw, defaultCountryCode = '27') => {\n  const text = String(raw ?? '').trim().toLowerCase();\n  if (WITHHELD_CALLER_IDS.includes(text)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const withoutUri = text.replace(/^(sips?|tel):/, '').replace(/@.*$/, '');\n  const withoutTrunkZero = withoutUri.replace(/\\(0\\)/g, '');\n  const hasPlus = withoutTrunkZero.startsWith('+');\n  const digits = withoutTrunkZero.replace(/\\D/g, '');\n  if (digits !== '' && WITHHELD_CALLER_IDS.includes(digits)) {\n    return { ok: false, issue: 'withheld' };\n  }\n  const cc = defaultCountryCode;\n  let e164 = '';\n  if (hasPlus) {\n    e164 = `+${digits}`;\n  }\n  else if (/^00[1-9]/.test(digits)) {\n    e164 = `+${digits.slice(2)}`;\n  }\n  else if (digits.startsWith(cc) && digits.length === cc.length + 9) {\n    e164 = `+${digits}`;\n  }\n  else if (digits.startsWith('0') && digits.length === 10) {\n    e164 = `+${cc}${digits.slice(1)}`;\n  }\n  // \"+27 0xx xxx xxxx\" typed with the local trunk zero still in it.\n  if (e164.startsWith(`+${cc}0`) && e164.length === cc.length + 11) {\n    e164 = `+${cc}${e164.slice(cc.length + 2)}`;\n  }\n  return E164_PATTERN.test(e164) ? { ok: true, e164 } : { ok: false, issue: 'invalid' };\n};\n\n// Allowed prefixes come from Config as a comma separated list, for example \"+27\".\nconst parsePrefixList = (value) => String(value ?? '')\n  .split(',')\n  .map((part) => part.trim())\n  .filter((part) => /^\\+\\d{1,4}$/.test(part));\n\nconst isAllowedCountry = (e164, allowedPrefixes) => allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => e164.startsWith(prefix));\n\n// \"+27000000012\" becomes \"+27 00 000 0012\" for alerts a manager reads.\nconst formatPhoneForPeople = (e164) => {\n  const match = /^\\+27(\\d{2})(\\d{3})(\\d{4})$/.exec(e164);\n  return match ? `+27 ${match[1]} ${match[2]} ${match[3]}` : e164;\n};\n\n// ---- src/logic/clock.ts ----\n// Time helpers. Every decision takes \"now\" as an input so tests and the demo can replay a whole day.\nconst toUtcIso = (value) => value.toUTC().toISO() ?? '';\n\n// Uses the x-hs-test-clock header only when Config has test_clock_enabled set to true.\n// It ships switched off. The e2e harness switches it on to replay a synthetic day.\nconst resolveNow = (realNowIso, testClockEnabled, testClockHeader) => {\n  if (testClockEnabled === true && typeof testClockHeader === 'string' && testClockHeader.trim() !== '') {\n    const fake = DateTime.fromISO(testClockHeader.trim(), { setZone: true });\n    if (fake.isValid) {\n      return toUtcIso(fake);\n    }\n  }\n  return toUtcIso(DateTime.fromISO(realNowIso, { setZone: true }));\n};\n\n// Accepts an ISO string or a Date, which is what Postgres drivers hand back for timestamptz.\nconst toIso = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n  const parsed = value instanceof Date\n    ? DateTime.fromJSDate(value)\n    : DateTime.fromISO(String(value), { setZone: true });\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\nconst minutesBetween = (fromIso, toIsoValue) => DateTime.fromISO(toIsoValue).diff(DateTime.fromISO(fromIso), 'minutes').minutes;\n\nconst minuteOfDay = (hhmm) => {\n  const match = /^(\\d{1,2}):(\\d{2})$/.exec(hhmm.trim());\n  if (!match) {\n    throw new Error(`Expected a time like 21:00, got \"${hhmm}\"`);\n  }\n  return Number(match[1]) * 60 + Number(match[2]);\n};\n\n// Quiet hours can wrap midnight, for example 21:00 to 08:00. The end minute is not quiet.\nconst isQuietHours = (nowIso, timezone, quietStart, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = local.hour * 60 + local.minute;\n  const start = minuteOfDay(quietStart);\n  const end = minuteOfDay(quietEnd);\n  if (start === end) {\n    return false;\n  }\n  return start < end ? minute >= start && minute < end : minute >= start || minute < end;\n};\n\n// The next time the clock reads quietEnd in the business timezone, strictly after now.\nconst nextQuietEnd = (nowIso, timezone, quietEnd) => {\n  const local = DateTime.fromISO(nowIso).setZone(timezone);\n  const minute = minuteOfDay(quietEnd);\n  let target = local.set({ hour: Math.floor(minute / 60), minute: minute % 60, second: 0, millisecond: 0 });\n  if (target <= local) {\n    target = target.plus({ days: 1 });\n  }\n  return toUtcIso(target);\n};\n\n// Twilio sends Timestamp as RFC 2822, for example \"Fri, 16 Oct 2026 10:05:00 +0000\".\nconst parseTwilioTimestamp = (value) => {\n  if (typeof value !== 'string' || value.trim() === '') {\n    return null;\n  }\n  const parsed = DateTime.fromRFC2822(value.trim());\n  return parsed.isValid ? toUtcIso(parsed) : null;\n};\n\n// The report covers one calendar day in the business timezone. By default that is yesterday.\nconst reportWindow = (nowIso, timezone, requestedDate) => {\n  const asked = typeof requestedDate === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)\n    ? DateTime.fromISO(requestedDate, { zone: timezone })\n    : null;\n  const day = asked && asked.isValid\n    ? asked.startOf('day')\n    : DateTime.fromISO(nowIso).setZone(timezone).startOf('day').minus({ days: 1 });\n  return {\n    date: day.toISODate() ?? '',\n    label: day.toFormat('cccc d LLLL yyyy'),\n    startIso: toUtcIso(day),\n    endIso: toUtcIso(day.plus({ days: 1 })),\n  };\n};\n\nconst isWithin = (iso, startIso, endIso) => {\n  if (!iso) {\n    return false;\n  }\n  const at = DateTime.fromISO(iso).toMillis();\n  return at >= DateTime.fromISO(startIso).toMillis() && at < DateTime.fromISO(endIso).toMillis();\n};\n\nconst localTimeLabel = (iso, timezone) => DateTime.fromISO(iso).setZone(timezone).toFormat('HH:mm');\n\nconst hoursBefore = (iso, hours) => toUtcIso(DateTime.fromISO(iso).minus({ hours }));\n\nconst daysBefore = (iso, days) => toUtcIso(DateTime.fromISO(iso).minus({ days }));\n\n// ---- src/logic/alerts.ts ----\n// Messages for the manager. These do contain the caller's number, because the manager needs to act on them.\n// Pulls the useful part out of whatever n8n stored for a failed Twilio request.\n// Twilio errors look like {\"code\":21614,\"message\":\"'To' number is not a valid mobile number\",...}.\n// n8n may nest that body inside its own error object, sometimes as an escaped string.\nconst describeTwilioError = (raw) => {\n  const text = (typeof raw === 'string' ? raw : JSON.stringify(raw ?? '')).replace(/\\\\+\"/g, '\"');\n  const code = /\"code\"\\s*:\\s*\"?(\\d{5})\\b/.exec(text);\n  const messagePattern = /\"message\"\\s*:\\s*\"([^\"]{1,300})\"/;\n  if (code) {\n    const after = messagePattern.exec(text.slice(code.index, code.index + 400));\n    const before = messagePattern.exec(text.slice(Math.max(0, code.index - 400), code.index));\n    const message = after?.[1] ?? before?.[1];\n    return message ? `${message} (Twilio error ${code[1]})` : `Twilio error ${code[1]}`;\n  }\n  const message = messagePattern.exec(text);\n  return message?.[1] ?? (text.slice(0, 200) || 'unknown error');\n};\n\nconst failedSmsAlert = (business, callerE164, calledAtIso, timezone, error) => ({\n  alert_subject: `${business}: a missed caller could not be texted`,\n  alert_text: `${business}: we could not text a missed caller (${formatPhoneForPeople(callerE164)}, called at `\n    + `${localTimeLabel(calledAtIso, timezone)}). ${error}. Please call them back.`,\n});\n\nconst replyAlert = (business, fromE164, receivedAtIso, timezone, preview, blockedOptOut) => {\n  const who = formatPhoneForPeople(fromE164);\n  const at = localTimeLabel(receivedAtIso, timezone);\n  if (blockedOptOut) {\n    return {\n      alert_subject: `${business}: opted out customer asked for the booking link`,\n      alert_text: `${business}: ${who} asked for the booking link at ${at} (\"${preview}\"), but this number opted out `\n        + 'earlier, so the kit did not text them. Phone them if you want to help.',\n    };\n  }\n  return {\n    alert_subject: `${business}: new SMS reply from a missed caller`,\n    alert_text: `${business}: ${who} replied at ${at}: \"${preview}\". Reply to them from the shop phone.`,\n  };\n};\n\nconst linkFailedAlert = (business, fromE164, error) => ({\n  alert_subject: `${business}: booking link could not be sent`,\n  alert_text: `${business}: ${formatPhoneForPeople(fromE164)} asked for the booking link, but the SMS failed. `\n    + `${error}. Please send it by hand.`,\n});\n\n// ---- src/logic/config.ts ----\n// Reads the values the Config node adds to every item. Fails loudly when a value is missing.\nconst configString = (item, key) => {\n  const value = item[key];\n  if (typeof value !== 'string' || value.trim() === '') {\n    throw new Error(`Config is missing \"${key}\". Open the Config node and fill it in.`);\n  }\n  return value.trim();\n};\n\nconst configNumber = (item, key) => {\n  const value = Number(item[key]);\n  if (item[key] === '' || item[key] === null || item[key] === undefined || !Number.isFinite(value)) {\n    throw new Error(`Config \"${key}\" must be a number.`);\n  }\n  return value;\n};\n\nconst configFlag = (item, key) => item[key] === true || item[key] === 'true';\n\nconst readRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};\n\n// ---- src/nodes/failureAlert.ts ----\n// Code node \"Failure alert\" in workflow 1. One alert per text that Twilio refused (the dead letter path).\nconst failureAlert = (rows, cfg) => rows\n  .filter((row) => row.outcome === 'failed' && typeof row.caller_e164 === 'string')\n  .map((row) => ({\n  call_key: String(row.call_key),\n  ...failedSmsAlert(configString(cfg, 'business_name'), String(row.caller_e164), toIso(row.called_at) ?? '', configString(cfg, 'timezone'), String(row.last_error ?? 'unknown error')),\n}));\n\n// ---- n8n entry point ----\nreturn failureAlert($input.all().map((item) => item.json), $('Config').first().json).map((json) => ({ json }));\n"
+      },
+      "notes": "Generated from src/nodes/failureAlert.ts"
+    },
+    {
+      "id": "233f1c45-e174-40cd-a774-e2e890ecf204",
+      "name": "Run once: create tables",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1000
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f23a02d2-43f3-4c79-a3da-2662632e38fa",
+      "name": "Create tables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        1000
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Missed call recovery kit, free edition. Safe to run more than once.\n-- Workflow 1 runs this from its \"Run once: create tables\" step, or paste it into your Postgres SQL editor.\n-- Message text from customers is never stored. Phone numbers are stored in E.164 so opt outs match reliably.\nCREATE TABLE IF NOT EXISTS hs_missed_calls (\n  call_key        text PRIMARY KEY,\n  call_sid        text NOT NULL,\n  caller_e164     text,\n  call_status     text NOT NULL,\n  called_at       timestamptz NOT NULL,\n  received_at     timestamptz NOT NULL,\n  outcome         text NOT NULL DEFAULT 'claimed' CHECK (outcome IN (\n                    'claimed', 'sending', 'sent', 'queued', 'failed', 'opted_out',\n                    'repeat_caller', 'no_caller_id', 'foreign_number', 'expired')),\n  callback_count  integer NOT NULL DEFAULT 1,\n  send_after      timestamptz,\n  sent_at         timestamptz,\n  sms_sid         text,\n  last_error      text,\n  link_token      text NOT NULL UNIQUE,\n  clicked_at      timestamptz,\n  click_count     integer NOT NULL DEFAULT 0\n);\n\nCREATE INDEX IF NOT EXISTS hs_missed_calls_caller_idx ON hs_missed_calls (caller_e164, called_at DESC);\nCREATE INDEX IF NOT EXISTS hs_missed_calls_queue_idx ON hs_missed_calls (send_after) WHERE outcome = 'queued';\n\nCREATE TABLE IF NOT EXISTS hs_opt_outs (\n  phone_e164    text PRIMARY KEY,\n  opted_out_at  timestamptz NOT NULL,\n  source        text NOT NULL DEFAULT 'sms_reply'\n);\n\nCREATE TABLE IF NOT EXISTS hs_sms_replies (\n  message_sid  text PRIMARY KEY,\n  from_e164    text,\n  intent       text NOT NULL CHECK (intent IN ('opt_out', 'book', 'other')),\n  action       text NOT NULL DEFAULT 'pending' CHECK (action IN (\n                 'pending', 'opted_out', 'link_sent', 'link_failed', 'blocked_opted_out', 'manager_alerted')),\n  detail       text,\n  received_at  timestamptz NOT NULL\n);\n\nCREATE INDEX IF NOT EXISTS hs_sms_replies_received_idx ON hs_sms_replies (received_at);",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "hsPostgresCred01",
+          "name": "Missed call kit Postgres"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "dce91c97-7cff-4f5f-a14f-15fc715fed1d",
+      "name": "Slack on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3100,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "241da66a-d562-4088-a93e-2065a2ba87c4",
+              "leftValue": "={{ $('Config').first().json.notify_slack }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "4e9f9a89-0c60-42df-af6c-7e6aa087674a",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3320,
+        20
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.slack_api_base }}/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $('Config').first().json.slack_channel }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Slack on?').item.json.alert_text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hsSlackBotCred01",
+          "name": "Slack bot token (Authorization header)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "efcd5611-156c-4d8c-a80f-f5e0636f4bb0",
+      "name": "Email on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3540,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c3472d54-dad4-4dcd-a8e6-36efeb920bf9",
+              "leftValue": "={{ $('Config').first().json.notify_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "e659c989-b7da-42be-ac51-e388afd61e4f",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3760,
+        20
+      ],
+      "parameters": {
+        "fromEmail": "={{ $('Config').first().json.email_from }}",
+        "toEmail": "={{ $('Config').first().json.email_to }}",
+        "subject": "={{ $('Slack on?').item.json.alert_subject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Slack on?').item.json.alert_text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "hsSmtpCred000001",
+          "name": "Manager email (SMTP)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Twilio call status": {
+      "main": [
+        [
+          {
+            "node": "Path: call status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 15 min, 08:00 to 20:45": {
+      "main": [
+        [
+          {
+            "node": "Path: release queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release queue now": {
+      "main": [
+        [
+          {
+            "node": "Path: release queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Path: call status": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Path: release queue": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Read call status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read call status": {
+      "main": [
+        [
+          {
+            "node": "Missed call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Missed call?": {
+      "main": [
+        [
+          {
+            "node": "Claim call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim call": {
+      "main": [
+        [
+          {
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action": {
+      "main": [
+        [
+          {
+            "node": "Prepare SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark queued",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark not texted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release window": {
+      "main": [
+        [
+          {
+            "node": "Outside quiet hours?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outside quiet hours?": {
+      "main": [
+        [
+          {
+            "node": "Claim due texts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim due texts": {
+      "main": [
+        [
+          {
+            "node": "Prepare SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare SMS": {
+      "main": [
+        [
+          {
+            "node": "Send SMS via Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS via Twilio": {
+      "main": [
+        [
+          {
+            "node": "Mark sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Describe failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Describe failure": {
+      "main": [
+        [
+          {
+            "node": "Mark failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark failed": {
+      "main": [
+        [
+          {
+            "node": "Failure alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure alert": {
+      "main": [
+        [
+          {
+            "node": "Slack on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack on?": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        [
+          {
+            "node": "Email on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email on?": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run once: create tables": {
+      "main": [
+        [
+          {
+            "node": "Create tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Johannesburg",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "active": false,
+  "tags": []
+}
