@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="857" height="653" viewBox="0 0 857 653" role="img" aria-label="$ npm run e2e   (real n8n 2.44.5 in Docker, docs/e2e-output.txt)">
+<title>$ npm run e2e   (real n8n 2.44.5 in Docker, docs/e2e-output.txt)</title>
+<rect width="857" height="653" rx="10" fill="#0d1117"/>
+<rect x="0.5" y="0.5" width="856" height="652" rx="10" fill="none" stroke="#30363d"/>
+<circle cx="20" cy="16" r="6" fill="#ff5f57"/><circle cx="40" cy="16" r="6" fill="#febc2e"/><circle cx="60" cy="16" r="6" fill="#28c840"/>
+<text x="428.5" y="20" text-anchor="middle" fill="#8b949e" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12">$&#160;npm&#160;run&#160;e2e&#160;&#160;&#160;(real&#160;n8n&#160;2.44.5&#160;in&#160;Docker,&#160;docs/e2e-output.txt)</text>
+<line x1="0" y1="32" x2="857" y2="32" stroke="#21262d"/>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="13" xml:space="preserve" style="white-space:pre">
+<text x="20" y="59" fill="#ffffff" font-weight="700">Missed&#160;call&#160;recovery&#160;kit:&#160;end&#160;to&#160;end&#160;run&#160;in&#160;real&#160;n8n&#160;(synthetic&#160;data)</text>
+<text x="20" y="78" fill="#8b949e">=====================================================================</text>
+<text x="20" y="97" fill="#e6edf3">Driver:&#160;n8n&#160;2.44.5&#160;in&#160;Docker&#160;(published&#160;workflows,&#160;Postgres&#160;17,&#160;mock&#160;APIs)</text>
+<text x="20" y="116" fill="#8b949e">&#160;&#160;...</text>
+<text x="20" y="135" fill="#e6edf3">Checks&#160;against&#160;the&#160;hand&#160;written&#160;answer&#160;key:&#160;15&#160;of&#160;<tspan fill="#3fb950" font-weight="700">15&#160;passed</tspan></text>
+<text x="20" y="154" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Every&#160;call&#160;ends&#160;with&#160;the&#160;outcome&#160;in&#160;the&#160;answer&#160;key:&#160;41&#160;of&#160;41&#160;calls&#160;match</text>
+<text x="20" y="173" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Exactly&#160;one&#160;text&#160;per&#160;texted&#160;call,&#160;none&#160;for&#160;the&#160;rest:&#160;33&#160;missed&#160;call&#160;texts&#160;for&#160;33&#160;texted&#160;calls</text>
+<text x="20" y="192" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Duplicate&#160;webhooks&#160;send&#160;nothing&#160;twice:&#160;4&#160;duplicate&#160;callbacks&#160;and&#160;1&#160;duplicate&#160;reply,&#160;0&#160;extra&#160;texts</text>
+<text x="20" y="211" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Answered&#160;calls&#160;are&#160;ignored:&#160;answered&#160;calls&#160;sent&#160;no&#160;text</text>
+<text x="20" y="230" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;No&#160;text&#160;goes&#160;out&#160;between&#160;21:00&#160;and&#160;08:00:&#160;37&#160;texts,&#160;all&#160;between&#160;08:00&#160;and&#160;21:00</text>
+<text x="20" y="249" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Quiet&#160;hours&#160;calls&#160;are&#160;texted&#160;at&#160;08:00:&#160;6&#160;queued&#160;calls&#160;texted&#160;at&#160;08:00</text>
+<text x="20" y="268" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Nobody&#160;is&#160;texted&#160;after&#160;opting&#160;out:&#160;4&#160;opt&#160;outs,&#160;0&#160;texts&#160;after&#160;them</text>
+<text x="20" y="287" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Every&#160;reply&#160;gets&#160;the&#160;right&#160;action:&#160;11&#160;replies&#160;stored&#160;once&#160;each</text>
+<text x="20" y="306" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Link&#160;taps&#160;redirect,&#160;preview&#160;bots&#160;are&#160;ignored:&#160;17&#160;taps,&#160;bot&#160;got&#160;403</text>
+<text x="20" y="325" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Report&#160;numbers&#160;match&#160;the&#160;hand&#160;count:&#160;21&#160;numbers&#160;match</text>
+<text x="20" y="344" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Report&#160;carries&#160;no&#160;phone&#160;numbers:&#160;counts&#160;only</text>
+<text x="20" y="363" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Manager&#160;alerts&#160;and&#160;the&#160;report&#160;reach&#160;Slack&#160;and&#160;email:&#160;5&#160;Slack&#160;posts,&#160;5&#160;emails</text>
+<text x="20" y="382" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;Webhooks&#160;refuse&#160;callers&#160;without&#160;the&#160;login&#160;(Twilio&#160;retries&#160;with&#160;it&#160;after&#160;the&#160;challenge):&#160;no&#160;login:</text>
+<text x="20" y="401" fill="#e6edf3">&#160;&#160;&#160;&#160;401&#160;with&#160;"Basic&#160;realm="Webhook"",&#160;wrong&#160;password:&#160;401</text>
+<text x="20" y="420" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;n8n&#160;and&#160;the&#160;in-process&#160;demo&#160;produce&#160;the&#160;same&#160;report:&#160;report&#160;text&#160;is&#160;identical</text>
+<text x="20" y="439" fill="#e6edf3"><tspan fill="#3fb950" font-weight="700">PASS</tspan>&#160;&#160;n8n&#160;and&#160;the&#160;in-process&#160;demo&#160;agree&#160;on&#160;every&#160;call&#160;outcome:&#160;41&#160;outcomes&#160;identical</text>
+<text x="20" y="458" fill="#e6edf3"></text>
+<text x="20" y="477" fill="#e6edf3">Before&#160;(synthetic&#160;baseline,&#160;no&#160;automation):&#160;40&#160;missed&#160;calls,&#160;0&#160;follow&#160;up&#160;texts.</text>
+<text x="20" y="496" fill="#e6edf3">After&#160;(same&#160;synthetic&#160;day,&#160;this&#160;kit):&#160;32&#160;of&#160;40&#160;missed&#160;callers&#160;got&#160;a&#160;booking&#160;link&#160;text&#160;(29&#160;the&#160;same&#160;day,</text>
+<text x="20" y="515" fill="#e6edf3">&#160;&#160;&#160;&#160;3&#160;at&#160;08:00&#160;the&#160;next&#160;morning).</text>
+<text x="20" y="534" fill="#e6edf3">&#160;&#160;13&#160;of&#160;them&#160;tapped&#160;the&#160;booking&#160;link.&#160;0&#160;texts&#160;in&#160;quiet&#160;hours,&#160;0&#160;double&#160;texts,&#160;0&#160;texts&#160;after&#160;an&#160;opt&#160;out.</text>
+<text x="20" y="553" fill="#e6edf3">Estimate,&#160;not&#160;measured:&#160;if&#160;1&#160;in&#160;3&#160;taps&#160;becomes&#160;an&#160;order&#160;worth&#160;R220,&#160;that&#160;is&#160;about&#160;4&#160;orders,&#160;about&#160;R880</text>
+<text x="20" y="572" fill="#e6edf3">&#160;&#160;&#160;&#160;for&#160;this&#160;one&#160;day.</text>
+<text x="20" y="591" fill="#e6edf3"></text>
+<text x="20" y="610" fill="#e6edf3">Stack:&#160;n8n&#160;2.44.5,&#160;Postgres&#160;17,&#160;mock&#160;Twilio,&#160;mock&#160;Slack&#160;and&#160;SMTP&#160;sink,&#160;all&#160;in&#160;Docker&#160;on&#160;this&#160;machine.</text>
+<text x="20" y="629" fill="#e6edf3">Stack&#160;start&#160;30s,&#160;replay&#160;of&#160;131&#160;events&#160;16s.</text>
+</g>
+</svg>

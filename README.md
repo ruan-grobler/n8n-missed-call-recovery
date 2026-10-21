@@ -2,7 +2,32 @@
 
 Text back every missed call with a booking link, without texting at night, without double texts, and without ever ignoring an opt out.
 
-Three importable n8n workflows, tested end to end in real n8n 2.44.5. MIT licensed.
+[![CI](https://github.com/ruan-grobler/n8n-missed-call-recovery/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ruan-grobler/n8n-missed-call-recovery/actions/workflows/ci.yml)
+![n8n 2.44.5 tested](https://img.shields.io/badge/n8n-2.44.5%20tested-EA4B71?logo=n8n&logoColor=white)
+![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
+![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Tests: 179 passing](https://img.shields.io/badge/tests-179%20passing-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Three importable n8n workflows. CI runs them end to end in real n8n 2.44.5 in Docker on every push to main.
+
+**The result.** On one synthetic Friday with 40 missed calls, 32 callers got a booking link and 13 tapped it. 0 texts in quiet hours, 0 double texts and 0 texts after an opt out. The real n8n run matches a hand written answer key on 15 of 15 checks.
+
+![Terminal output of npm run e2e in real n8n 2.44.5: 15 of 15 checks passed, including one text per texted call, no texts between 21:00 and 08:00, nobody texted after opting out, and n8n and the in-process demo producing the identical report. After: 32 of 40 missed callers got a booking link text and 13 tapped it.](docs/images/e2e-run.svg)
+
+<sub>From [docs/e2e-output.txt](docs/e2e-output.txt), the saved output of `npm run e2e`. The per call table is cut for space where it says `...`.</sub>
+
+## Quickstart
+
+```bash
+git clone https://github.com/ruan-grobler/n8n-missed-call-recovery.git && cd n8n-missed-call-recovery
+npm install
+npm run demo
+```
+
+`npm run demo` replays the synthetic day in a few seconds: 40 missed calls with quiet hours, duplicates, replies, opt outs and link taps. It prints what happened to every call, the daily report and 12 checks. No Docker, no accounts. The output is saved in [docs/demo-output.txt](docs/demo-output.txt).
+
+With Docker running, `npm run e2e` does the same through real n8n 2.44.5, Postgres 17 and mock Twilio, Slack and email ([docs/e2e-output.txt](docs/e2e-output.txt)).
 
 ## The business problem
 
@@ -30,18 +55,6 @@ The 8 callers who got no text: 2 repeat callers who already had a text sent or w
 **Estimate, not measured:** if 1 in 3 taps becomes an order worth R220, that is about 4 orders, about R880 for this one day. The two assumptions are in `src/sim/format.ts`. Use your own numbers.
 
 All data is synthetic. Numbers are fake (`+27 00 000 00xx`) and the business is fictional.
-
-## Quickstart
-
-```bash
-git clone https://github.com/ruan-grobler/n8n-missed-call-recovery.git && cd n8n-missed-call-recovery
-npm install
-npm run demo
-```
-
-`npm run demo` replays the synthetic day in a few seconds: 40 missed calls with quiet hours, duplicates, replies, opt outs and link taps. It prints what happened to every call, the daily report and 12 checks. No Docker, no accounts. The output is saved in [docs/demo-output.txt](docs/demo-output.txt).
-
-With Docker running, `npm run e2e` does the same through real n8n 2.44.5, Postgres 17 and mock Twilio, Slack and email ([docs/e2e-output.txt](docs/e2e-output.txt)).
 
 ## How it works
 
