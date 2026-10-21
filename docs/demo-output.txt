@@ -5,7 +5,7 @@ Scenario: scenarios/harbour-slice-day.ts (synthetic data, fake numbers, fictiona
 Events replayed: 131 (calls, duplicate callbacks, answered calls, replies, link taps, 15 minute release ticks, the 08:00 report)
 
 Example text a missed caller receives:
-  Harbour Slice: sorry we missed your call! Book or order here: http://localhost:5678/webhook/hs/book?t=ab62d745eaf3 Reply STOP to opt out.
+  Harbour Slice: sorry we missed your call! Book or order here: http://localhost:5678/webhook/hs/book?t=8a3bdf6931f2 Reply STOP to opt out.
 
 What happened to every call
 Call When          Status     Caller ID as received             Outcome         Texted
@@ -87,4 +87,4 @@ PASS  Manager alerts and the report reach Slack and email: 5 Slack posts, 5 emai
 Before (synthetic baseline, no automation): 40 missed calls, 0 follow up texts.
 After (same synthetic day, this kit): 32 of 40 missed callers got a booking link text (29 the same day, 3 at 08:00 the next morning).
   13 of them tapped the booking link. 0 texts in quiet hours, 0 double texts, 0 texts after an opt out.
-Estimate, not measured: if 1 in 3 taps becomes an order worth R250, that is about 4 orders, about R1,000 for this one day.
+Estimate, not measured: if 1 in 3 taps becomes an order worth R220, that is about 4 orders, about R880 for this one day.

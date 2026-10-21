@@ -5,7 +5,7 @@ import type { ScenarioResult } from './runner.ts';
 import { TIMEZONE, callKeyFor } from './runner.ts';
 
 // Assumptions for the one estimate in the output. They are not measured.
-export const ESTIMATE = { tapsPerOrder: 3, averageOrderZar: 250 } as const;
+export const ESTIMATE = { tapsPerOrder: 3, averageOrderZar: 220 } as const;
 
 const local = (iso: string | null | undefined, format: string): string =>
   iso ? DateTime.fromISO(iso).setZone(TIMEZONE).toFormat(format) : '';

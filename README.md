@@ -27,7 +27,7 @@ Measured on one synthetic Friday (40 missed calls) from `npm run demo`. The same
 
 The 8 callers who got no text: 2 repeat callers who already had a text sent or waiting, 2 who had opted out, 2 with no caller ID, 1 foreign number and 1 landline that Twilio refused (the manager was alerted to call back).
 
-**Estimate, not measured:** if 1 in 3 taps becomes an order worth R250, that is about 4 orders, about R1,000 for this one day. The two assumptions are in `src/sim/format.ts`. Use your own numbers.
+**Estimate, not measured:** if 1 in 3 taps becomes an order worth R220, that is about 4 orders, about R880 for this one day. The two assumptions are in `src/sim/format.ts`. Use your own numbers.
 
 All data is synthetic. Numbers are fake (`+27 00 000 00xx`) and the business is fictional.
 
