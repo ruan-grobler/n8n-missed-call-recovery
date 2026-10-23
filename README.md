@@ -6,7 +6,7 @@ Text back every missed call with a booking link, without texting at night, witho
 ![n8n 2.44.5 tested](https://img.shields.io/badge/n8n-2.44.5%20tested-EA4B71?logo=n8n&logoColor=white)
 ![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
 ![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Tests: 179 passing](https://img.shields.io/badge/tests-179%20passing-brightgreen)
+![Tests: 184 passing](https://img.shields.io/badge/tests-184%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Three importable n8n workflows. CI runs them end to end in real n8n 2.44.5 in Docker on every push to main.
@@ -55,6 +55,40 @@ The 8 callers who got no text: 2 repeat callers who already had a text sent or w
 **Estimate, not measured:** if 1 in 3 taps becomes an order worth R220, that is about 4 orders, about R880 for this one day. The two assumptions are in `src/sim/format.ts`. Use your own numbers.
 
 All data is synthetic. Numbers are fake (`+27 00 000 00xx`) and the business is fictional.
+
+## ROI
+
+The kit records the staff time it saves in n8n Insights, so the owner sees the value in their own n8n, not in a slide.
+
+Each workflow ships with **Estimated time saved** set to **Dynamic**. A Time saved node (n8n's Track Time Saved) sits right after each step that does a job a person would otherwise do by hand. When a run takes that path, n8n adds its minutes:
+
+| Path that ran | Time saved node | Minutes | Same count in the daily report |
+|---|---|---|---|
+| Missed call text sent, straight away or at 08:00 | *Time saved: text sent* (workflow 1) | 2 per text | Missed call texts |
+| Booking link sent again after YES or BOOK | *Time saved: link sent again* (workflow 2) | 1 per text | Booking links on request |
+| First tap on a booking link | *Time saved: booking click* (workflow 2) | 3 per booking | Bookings clicked |
+| Daily report built | *Time saved: daily report* (workflow 3) | 5 per report | |
+
+Skipped calls, duplicate callbacks, opt outs, manager alerts, failed sends, repeat taps and bot taps add nothing. The total stays conservative, and you can check it against the daily report.
+
+**The baseline.** The minutes are starting estimates of the manual job, not measurements. All four live in one constant, `TIME_SAVED_MINUTES` in [src/build/workflows.ts](src/build/workflows.ts), next to the manual job each one stands for. Before you quote a number, time that job at the business (for example, five missed call follow ups with a stopwatch), put the average in, run `npm run build` and re-import. On a single install you can also change **Minutes Saved** on the node in n8n.
+
+**Where it shows up.** Only successful production executions count: published workflows started by a webhook or the schedule. Test runs from the editor, failed runs and sub-workflow runs never count. New runs can take up to an hour to show, because n8n compacts Insights data every 60 minutes by default (`N8N_INSIGHTS_COMPACTION_INTERVAL_MINUTES`). Instance owners and admins see:
+
+- **The summary banner** at the top of the Overview page, with **Time saved** for the last 7 days. On every n8n Cloud plan and every self hosted edition.
+- **The Insights dashboard**, with time saved per workflow. On n8n Cloud Pro (7 and 14 days) and Enterprise, and on self hosted Business (24 hours to 30 days) and Enterprise (up to 1 year).
+
+Plan details are from [n8n's Insights docs](https://docs.n8n.io/insights/), checked on 23 October 2026. Check them again for the client's plan.
+
+**From minutes to rand.** Use the client's own loaded hourly rate: what one hour of the person who would do the job costs the business, wage plus UIF, SDL, leave and other on costs. Ask the client for it. Never assume one.
+
+```
+rand saved = minutes saved / 60 x the client's loaded hourly rate
+```
+
+For the synthetic Friday, the daily report shows 29 missed call texts, 4 booking links on request and 13 bookings clicked: 29 x 2 + 4 x 1 + 13 x 3 + 5 for the report = 106 minutes, about 1.8 hours, times the client's rate.
+
+That rand figure is what the same work would cost by hand. Show it next to the order estimate above, not added to it, because both price the same texts.
 
 ## How it works
 
@@ -157,11 +191,11 @@ From [docs/test-output.txt](docs/test-output.txt) (`npm run ci`: lint, typecheck
 
 ```
  Test Files  16 passed (16)
-      Tests  179 passed (179)
-Statements   : 97.04% ( 1149/1184 )
-Branches     : 87.79% ( 633/721 )
-Functions    : 96.04% ( 267/278 )
-Lines        : 97.23% ( 1056/1086 )
+      Tests  184 passed (184)
+Statements   : 97.08% ( 1166/1201 )
+Branches     : 87.86% ( 637/725 )
+Functions    : 96.07% ( 269/280 )
+Lines        : 97.28% ( 1073/1103 )
 ```
 
 The tests cover the logic, every SQL file on PGlite (real Postgres in WebAssembly), the mocks, a drift check of the workflow JSON, and a run of every generated Code node in a sandbox with n8n style globals.
@@ -209,7 +243,7 @@ This is not legal advice. It is how the kit is built, so you can check it agains
 
 ## Stack
 
-- n8n 2.44.5 (tested). The nodes use versions that also exist in n8n 1.x, but 1.x has not been tested.
+- n8n 2.44.5 (tested). The Time saved nodes use n8n's Track Time Saved node, which n8n switched on for everyone in 2.1. On an older n8n, delete the four Time saved nodes after import. The other nodes use versions that also exist in n8n 1.x, but 1.x has not been tested.
 - Postgres 17 (PGlite in tests), Twilio Programmable Voice status callbacks and the Messages API, Slack Web API `chat.postMessage`, SMTP.
 - TypeScript 6 (strict) with Luxon, Vitest 5, ESLint 10, Docker Compose. npm only.
 - Mocks: a small Node server for Twilio, Slack and SMTP, built on Node built-ins only.

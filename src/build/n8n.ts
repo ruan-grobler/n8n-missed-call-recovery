@@ -1,5 +1,5 @@
-// Small helpers that build n8n workflow JSON. Node versions are ones that exist in n8n 1.x and 2.x;
-// the e2e run imports them into n8n 2.44.5.
+// Small helpers that build n8n workflow JSON. Node versions are ones that exist in n8n 1.x and 2.x,
+// except Track Time Saved (n8n 2.1 and later); the e2e run imports them into n8n 2.44.5.
 import { createHash } from 'node:crypto';
 
 export type Position = [number, number];
@@ -333,6 +333,23 @@ export const respondRedirectNode = (name: string, position: Position, urlExpress
   parameters: { respondWith: 'redirect', redirectURL: urlExpression, options: { responseCode: 302 } },
 });
 
+// n8n's Track Time Saved node. With the workflow set to Dynamic time saved, n8n Insights adds up the minutes of
+// every one of these that ran in a successful production execution. Test runs from the editor never count.
+// 'perItem' multiplies the minutes by the number of items, 'once' counts them once per execution.
+export const timeSavedNode = (name: string, position: Position, minutesSaved: number, mode: 'once' | 'perItem', notes: string): Omit<N8nNode, 'id'> => {
+  if (!Number.isInteger(minutesSaved) || minutesSaved < 1) {
+    throw new Error(`"${name}" needs a whole number of minutes, 1 or more, not ${minutesSaved}`);
+  }
+  return {
+    name,
+    type: 'n8n-nodes-base.timeSaved',
+    typeVersion: 1,
+    position,
+    parameters: { mode, minutesSaved },
+    notes,
+  };
+};
+
 export const stickyNode = (name: string, position: Position, content: string, size: { width: number; height: number; color?: number }): Omit<N8nNode, 'id'> => ({
   name,
   type: 'n8n-nodes-base.stickyNote',
@@ -348,6 +365,7 @@ export const finishWorkflow = (draft: WorkflowDraft, name: string, timezone: str
   connections: draft.connections,
   // Successful runs are not saved: n8n's execution log would otherwise keep a copy of every phone number
   // and every SMS reply. Failed runs are kept so you can debug them (POPIA: keep only what you need).
+  // Time saved is Dynamic: n8n Insights adds up the Time saved nodes on the paths that ran (README, ROI).
   settings: {
     executionOrder: 'v1',
     timezone,
@@ -356,6 +374,7 @@ export const finishWorkflow = (draft: WorkflowDraft, name: string, timezone: str
     saveExecutionProgress: false,
     saveManualExecutions: true,
     callerPolicy: 'workflowsFromSameOwner',
+    timeSavedMode: 'dynamic',
   },
   pinData: {},
   meta: { templateCredsSetupCompleted: false },

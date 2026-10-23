@@ -23,6 +23,7 @@ import {
   stickyNode,
   stringEquals,
   switchNode,
+  timeSavedNode,
   webhookNode,
 } from './n8n.ts';
 import type { N8nWorkflow, Position, SetValue, WorkflowDraft } from './n8n.ts';
@@ -47,6 +48,21 @@ export const WEBHOOK_PATHS = {
   smsReply: 'hs/sms-reply',
   bookingClick: 'hs/book',
   dailyReport: 'hs/daily-report',
+} as const;
+
+// The time saved baseline: minutes a person spends on each job by hand, without the kit. Every Time saved node
+// takes its minutes from here and n8n Insights adds them up (README, "ROI"). These are conservative starting
+// estimates, not measurements: time the manual job at the business, change the number, run "npm run build" and
+// re-import. Skipped calls, duplicates, opt outs, manager alerts and failed sends save nothing, so they have no entry.
+export const TIME_SAVED_MINUTES = {
+  // Find the missed call, check the number is not opted out, then phone back or text the booking link.
+  missedCallText: 2,
+  // Read a YES or BOOK reply and send the booking link again.
+  bookingLinkAgain: 1,
+  // Take the booking or order over the phone instead. Counted once per link, on the first tap.
+  bookingClick: 3,
+  // Count yesterday's missed calls, texts, replies and taps by hand and send them to the manager.
+  dailyReport: 5,
 } as const;
 
 const CONFIG_KEYS = {
@@ -189,6 +205,14 @@ const sql = (
   return addNode(draft, postgresNode(name, position, readSql(file), parameters, options));
 };
 
+const timeSaved = (
+  draft: WorkflowDraft,
+  name: string,
+  position: Position,
+  job: keyof typeof TIME_SAVED_MINUTES,
+  mode: 'once' | 'perItem',
+): string => addNode(draft, timeSavedNode(name, position, TIME_SAVED_MINUTES[job], mode, `Minutes from TIME_SAVED_MINUTES.${job} in src/build/workflows.ts`));
+
 // Slack then email, in a straight line, so each alert is sent once per item.
 // Every step reads the alert from the "Slack on?" node, which sees every item.
 const alertChain = (draft: WorkflowDraft, from: string, x: number, y: number, suffix = ''): string => {
@@ -292,6 +316,7 @@ export const buildCaptureWorkflow = (config: KitConfig): N8nWorkflow => {
   const markSent = sql(draft, kind, 'Mark sent', [2440, -80],
     "={{ [ $('Prepare SMS').item.json.call_key, 'sent', null, $('Prepare SMS').item.json.now_iso, $json.sid ?? null, null ] }}",
     { independent: true });
+  const savedText = timeSaved(draft, 'Time saved: text sent', [2660, -80], 'missedCallText', 'perItem');
   const describe = code(draft, kind, 'Describe failure', [2440, 120]);
   const markFailed = sql(draft, kind, 'Mark failed', [2660, 120],
     "={{ [ $json.call_key, 'failed', null, null, null, $json.error_text ] }}", { independent: true });
@@ -320,6 +345,7 @@ export const buildCaptureWorkflow = (config: KitConfig): N8nWorkflow => {
   connect(draft, claimDue, prepare);
   connect(draft, prepare, send);
   connect(draft, send, markSent, 0);
+  connect(draft, markSent, savedText);
   connect(draft, send, describe, 1);
   connect(draft, describe, markFailed);
   connect(draft, markFailed, failure);
@@ -373,6 +399,7 @@ export const buildRepliesWorkflow = (config: KitConfig): N8nWorkflow => {
     From: "={{ $('Decide reply').first().json.sms_from }}",
     Body: "={{ $('Decide reply').first().json.sms_body }}",
   }));
+  const savedLink = timeSaved(draft, 'Time saved: link sent again', [2640, -140], 'bookingLinkAgain', 'perItem');
   const describe = code(draft, kind, 'Describe link failure', [2640, 60]);
   const markFailed = sql(draft, kind, 'Mark link failed', [2860, 60], "={{ [ $json.message_sid, 'link_failed', $json.error_text ] }}");
   const alert = code(draft, kind, 'Alert text', [3080, 240]);
@@ -382,6 +409,9 @@ export const buildRepliesWorkflow = (config: KitConfig): N8nWorkflow => {
   const readClickNode = code(draft, kind, 'Read click', [880, 700]);
   const recordClick = sql(draft, kind, 'Record click', [1100, 700], '={{ [ $json.token, $json.now_iso ] }}', { continueOnFail: true });
   const redirect = addNode(draft, respondRedirectNode('Redirect to booking page', [1320, 700], "={{ $('Config').first().json.booking_url }}"));
+  // After the redirect, so the customer never waits. A repeat tap, an unknown link or a failed write counts nothing.
+  const firstTap = addNode(draft, ifNode('First tap?', [1540, 700], isTrue(draft.id, 'first-tap', '={{ $json.first_tap === true }}')));
+  const savedClick = timeSaved(draft, 'Time saved: booking click', [1760, 680], 'bookingClick', 'perItem');
 
   connect(draft, smsHook, pathReply);
   connect(draft, clickHook, pathClick);
@@ -402,6 +432,7 @@ export const buildRepliesWorkflow = (config: KitConfig): N8nWorkflow => {
   connect(draft, replyAction, alert, 1);
   connect(draft, replyAction, respond, 2);
   connect(draft, sendLink, respond, 0);
+  connect(draft, sendLink, savedLink, 0);
   connect(draft, sendLink, describe, 1);
   connect(draft, describe, markFailed);
   connect(draft, markFailed, alert);
@@ -410,6 +441,8 @@ export const buildRepliesWorkflow = (config: KitConfig): N8nWorkflow => {
   connect(draft, 'Send email', respond);
   connect(draft, readClickNode, recordClick);
   connect(draft, recordClick, redirect);
+  connect(draft, redirect, firstTap);
+  connect(draft, firstTap, savedClick, 0);
 
   return finishWorkflow(draft, 'Missed call recovery 2: replies and link clicks', String(config.timezone));
 };
@@ -442,6 +475,8 @@ export const buildReportWorkflow = (config: KitConfig): N8nWorkflow => {
     report: "={{ $('Build report').first().json }}",
     retention: "={{ $('Apply retention').first().json }}",
   }, { keepInput: false, objectFields: ['report', 'retention'] }));
+  // Last, and it passes "Report done" through unchanged, so "Run report now" still answers with the report.
+  const savedReport = timeSaved(draft, 'Time saved: daily report', [2440, 200], 'dailyReport', 'once');
 
   connect(draft, schedule, configNode);
   connect(draft, hook, configNode);
@@ -452,6 +487,7 @@ export const buildReportWorkflow = (config: KitConfig): N8nWorkflow => {
   connect(draft, end, retention, 1);
   connect(draft, 'Send email', retention);
   connect(draft, retention, done);
+  connect(draft, done, savedReport);
 
   return finishWorkflow(draft, 'Missed call recovery 3: daily report', String(config.timezone));
 };

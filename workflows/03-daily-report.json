@@ -266,6 +266,21 @@
       }
     },
     {
+      "id": "394bbbfb-39db-43b6-a061-e5c9d7bfaa90",
+      "name": "Time saved: daily report",
+      "type": "n8n-nodes-base.timeSaved",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        200
+      ],
+      "parameters": {
+        "mode": "once",
+        "minutesSaved": 5
+      },
+      "notes": "Minutes from TIME_SAVED_MINUTES.dailyReport in src/build/workflows.ts"
+    },
+    {
       "id": "d38efcdb-9399-46bd-ac0a-1d90b29d9231",
       "name": "Slack on?",
       "type": "n8n-nodes-base.if",
@@ -545,6 +560,17 @@
           }
         ]
       ]
+    },
+    "Report done": {
+      "main": [
+        [
+          {
+            "node": "Time saved: daily report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -554,7 +580,8 @@
     "saveDataSuccessExecution": "none",
     "saveExecutionProgress": false,
     "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timeSavedMode": "dynamic"
   },
   "pinData": {},
   "meta": {

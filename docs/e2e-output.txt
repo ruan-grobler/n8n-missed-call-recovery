@@ -5,7 +5,7 @@ Scenario: scenarios/harbour-slice-day.ts (synthetic data, fake numbers, fictiona
 Events replayed: 131 (calls, duplicate callbacks, answered calls, replies, link taps, 15 minute release ticks, the 08:00 report)
 
 Example text a missed caller receives:
-  Harbour Slice: sorry we missed your call! Book or order here: http://localhost:5678/webhook/hs/book?t=761d3684b096 Reply STOP to opt out.
+  Harbour Slice: sorry we missed your call! Book or order here: http://localhost:5678/webhook/hs/book?t=437fd607aaf5 Reply STOP to opt out.
 
 What happened to every call
 Call When          Status     Caller ID as received             Outcome         Texted
@@ -93,4 +93,4 @@ After (same synthetic day, this kit): 32 of 40 missed callers got a booking link
 Estimate, not measured: if 1 in 3 taps becomes an order worth R220, that is about 4 orders, about R880 for this one day.
 
 Stack: n8n 2.44.5, Postgres 17, mock Twilio, mock Slack and SMTP sink, all in Docker on this machine.
-Stack start 30s, replay of 131 events 16s.
+Stack start 28s, replay of 131 events 16s.

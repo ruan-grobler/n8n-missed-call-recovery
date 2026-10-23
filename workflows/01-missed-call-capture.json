@@ -802,6 +802,21 @@
       "waitBetweenTries": 1000
     },
     {
+      "id": "379ec708-efeb-4ee6-a122-c42ee2d1b4a4",
+      "name": "Time saved: text sent",
+      "type": "n8n-nodes-base.timeSaved",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        -80
+      ],
+      "parameters": {
+        "mode": "perItem",
+        "minutesSaved": 2
+      },
+      "notes": "Minutes from TIME_SAVED_MINUTES.missedCallText in src/build/workflows.ts"
+    },
+    {
       "id": "f19ffde8-3ece-4278-a790-0157e212ead1",
       "name": "Describe failure",
       "type": "n8n-nodes-base.code",
@@ -1256,6 +1271,17 @@
         ]
       ]
     },
+    "Mark sent": {
+      "main": [
+        [
+          {
+            "node": "Time saved: text sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Describe failure": {
       "main": [
         [
@@ -1348,7 +1374,8 @@
     "saveDataSuccessExecution": "none",
     "saveExecutionProgress": false,
     "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timeSavedMode": "dynamic"
   },
   "pinData": {},
   "meta": {

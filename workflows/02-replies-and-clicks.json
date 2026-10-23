@@ -567,6 +567,21 @@
       "onError": "continueErrorOutput"
     },
     {
+      "id": "fdcb7c61-0c17-48b8-ac7e-e76b7b7e998c",
+      "name": "Time saved: link sent again",
+      "type": "n8n-nodes-base.timeSaved",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        -140
+      ],
+      "parameters": {
+        "mode": "perItem",
+        "minutesSaved": 1
+      },
+      "notes": "Minutes from TIME_SAVED_MINUTES.bookingLinkAgain in src/build/workflows.ts"
+    },
+    {
       "id": "b208e171-2df9-4b51-ac3a-1efd4ab2f42b",
       "name": "Describe link failure",
       "type": "n8n-nodes-base.code",
@@ -676,7 +691,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Counts a tap on the tracked booking link. clicked_at keeps the first tap. $1 token, $2 now\nWITH hit AS (\n  UPDATE hs_missed_calls SET\n    clicked_at = COALESCE(clicked_at, $2::timestamptz),\n    click_count = click_count + 1\n  WHERE link_token = $1::text\n  RETURNING call_key\n)\nSELECT count(*)::int AS matched FROM hit",
+        "query": "-- Counts a tap on the tracked booking link. clicked_at keeps the first tap. $1 token, $2 now\n-- first_tap is true only for the first tap on a real link, so time saved counts each booking once.\nWITH hit AS (\n  UPDATE hs_missed_calls SET\n    clicked_at = COALESCE(clicked_at, $2::timestamptz),\n    click_count = click_count + 1\n  WHERE link_token = $1::text\n  RETURNING call_key, click_count\n)\nSELECT count(*)::int AS matched, coalesce(bool_or(click_count = 1), false) AS first_tap FROM hit",
         "options": {
           "queryReplacement": "={{ [ $json.token, $json.now_iso ] }}"
         }
@@ -708,6 +723,56 @@
           "responseCode": 302
         }
       }
+    },
+    {
+      "id": "1c17e4cb-4adb-4ddf-ab1b-ebd7a4b915eb",
+      "name": "First tap?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "25f14e2e-3298-4a38-a506-fb9e37ed8893",
+              "leftValue": "={{ $json.first_tap === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "3693292b-c013-467d-aa33-cdf8ea89a0d9",
+      "name": "Time saved: booking click",
+      "type": "n8n-nodes-base.timeSaved",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        680
+      ],
+      "parameters": {
+        "mode": "perItem",
+        "minutesSaved": 3
+      },
+      "notes": "Minutes from TIME_SAVED_MINUTES.bookingClick in src/build/workflows.ts"
     },
     {
       "id": "3555fd69-e998-410b-af1e-7ab43f169ff3",
@@ -1040,6 +1105,11 @@
             "node": "Reply to Twilio",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Time saved: link sent again",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -1163,6 +1233,28 @@
           }
         ]
       ]
+    },
+    "Redirect to booking page": {
+      "main": [
+        [
+          {
+            "node": "First tap?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First tap?": {
+      "main": [
+        [
+          {
+            "node": "Time saved: booking click",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1172,7 +1264,8 @@
     "saveDataSuccessExecution": "none",
     "saveExecutionProgress": false,
     "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "timeSavedMode": "dynamic"
   },
   "pinData": {},
   "meta": {

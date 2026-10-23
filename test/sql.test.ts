@@ -127,6 +127,14 @@ describe('record-click.sql', () => {
     const [stored] = await db.query("SELECT clicked_at, click_count FROM hs_missed_calls WHERE call_key = 'CA1'");
     expect(stored).toEqual({ clicked_at: at('12:05'), click_count: 2 });
   });
+
+  it('flags only the first tap on a real link, which is what time saved counts', async () => {
+    const [row] = await claim('CA1', '+27000000001', '12:00');
+    const token = String(row?.link_token);
+    expect(await db.run('record-click.sql', [token, at('12:05')])).toEqual([{ matched: 1, first_tap: true }]);
+    expect(await db.run('record-click.sql', [token, at('12:09')])).toEqual([{ matched: 1, first_tap: false }]);
+    expect(await db.run('record-click.sql', ['ffffffffffff', at('12:10')])).toEqual([{ matched: 0, first_tap: false }]);
+  });
 });
 
 describe('retention.sql', () => {
